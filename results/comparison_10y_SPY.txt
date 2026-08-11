@@ -2,23 +2,23 @@ Downloading SPY data (10y)...
 
 
 --- SMA Crossover (20/50) ---
-Strategy Total Return: 16.26%
-Buy & Hold Total Return: 316.99%
+Strategy Total Return: 15.73%
+Buy & Hold Total Return: 314.09%
 Max Drawdown: -46.69%
 
---- RSI Mean-Reversion (14) ---
-Strategy Total Return: 30.27%
-Buy & Hold Total Return: 316.99%
-Max Drawdown: -13.09%
+--- RSI Mean-Reversion (25/75 tuned) ---
+Strategy Total Return: 34.72%
+Buy & Hold Total Return: 314.09%
+Max Drawdown: -10.51%
 
 --- Breakout (20-day) ---
-Strategy Total Return: 18.70%
-Buy & Hold Total Return: 316.99%
+Strategy Total Return: 18.32%
+Buy & Hold Total Return: 314.09%
 Max Drawdown: -28.53%
 
 
 ========== SUMMARY ==========
 Strategy                          Return    Buy&Hold      Max DD
-SMA Crossover (20/50)            16.26%     316.99%     -46.69%
-RSI Mean-Reversion (14)          30.27%     316.99%     -13.09%
-Breakout (20-day)                18.70%     316.99%     -28.53%
+SMA Crossover (20/50)            15.73%     314.09%     -46.69%
+RSI Mean-Reversion (25/75)       34.72%     314.09%     -10.51%
+Breakout (20-day)                18.32%     314.09%     -28.53%

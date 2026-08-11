@@ -17,6 +17,7 @@ This is philosophically the opposite of the SMA crossover strategy. Crossover
 strategies bet trends continue. Mean-reversion bets extremes snap back.
 Trending markets tend to favor crossovers; choppy/sideways markets tend to
 favor mean-reversion.
+
 PARAMETER TUNING NOTES (tested on SPY, 10yr):
   - 30/70 (textbook default): +30.27% return, -13.09% max drawdown
   - 25/75 (tighter):          +34.72% return, -10.51% max drawdown  <- BEST

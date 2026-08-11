@@ -40,10 +40,10 @@ avg_loss = loss.rolling(window=14).mean()
 rs = avg_gain / avg_loss
 rsi_data["RSI"] = 100 - (100 / (1 + rs))
 rsi_data["Signal"] = 0
-rsi_data.loc[rsi_data["RSI"] < 30, "Signal"] = 1
-rsi_data.loc[rsi_data["RSI"] > 70, "Signal"] = -1
-rsi_results = run_backtest(rsi_data, strategy_name="RSI Mean-Reversion (14)")
-results_summary.append(("RSI Mean-Reversion (14)", rsi_results))
+rsi_data.loc[rsi_data["RSI"] < 25, "Signal"] = 1
+rsi_data.loc[rsi_data["RSI"] > 75, "Signal"] = -1
+rsi_results = run_backtest(rsi_data, strategy_name="RSI Mean-Reversion (25/75 tuned)")
+results_summary.append(("RSI Mean-Reversion (25/75)", rsi_results))
 
 # --- Strategy 3: Breakout ---
 bo_data = data.copy()
