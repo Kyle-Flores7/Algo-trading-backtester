@@ -45,4 +45,20 @@ loss = -delta.where(delta < 0, 0)
 avg_gain = gain.rolling(window=14).mean()
 avg_loss = loss.rolling(window=14).mean()
 
-# rs = ratio of average gains to
+# rs = ratio of average gains to average losses
+rs = avg_gain / avg_loss
+
+# Convert that ratio into the standard 0-100 RSI scale
+data["RSI"] = 100 - (100 / (1 + rs))
+
+# --- Generate Signals ---
+# Signal = 1 (buy) when RSI is oversold (below 30)
+# Signal = -1 (sell) when RSI is overbought (above 70)
+# Signal = 0 otherwise (no strong signal, stay out / hold)
+data["Signal"] = 0
+data.loc[data["RSI"] < 30, "Signal"] = 1
+data.loc[data["RSI"] > 70, "Signal"] = -1
+
+print(data[["Close", "RSI"]].tail(15))
+
+results = run_backtest(data, strategy_name="RSI Mean-Reversion (14)")
