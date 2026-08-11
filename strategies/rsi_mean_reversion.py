@@ -17,6 +17,18 @@ This is philosophically the opposite of the SMA crossover strategy. Crossover
 strategies bet trends continue. Mean-reversion bets extremes snap back.
 Trending markets tend to favor crossovers; choppy/sideways markets tend to
 favor mean-reversion.
+PARAMETER TUNING NOTES (tested on SPY, 10yr):
+  - 30/70 (textbook default): +30.27% return, -13.09% max drawdown
+  - 25/75 (tighter):          +34.72% return, -10.51% max drawdown  <- BEST
+  - 20/80 (very tight):       +15.00% return, -12.43% max drawdown
+
+Takeaway: waiting for more extreme RSI readings (25/75) improved BOTH return
+and drawdown vs. the textbook 30/70 default - filtering out weaker signals
+helped. But going too extreme (20/80) made things worse on both counts -
+the strategy became too selective to catch enough good trades to compound.
+This suggests a real "sweet spot" around 25/75 rather than "tighter is
+always better." Worth re-testing on other tickers before trusting this as
+a general rule rather than something specific to SPY's behavior.
 """
 
 import yfinance as yf
@@ -56,8 +68,8 @@ data["RSI"] = 100 - (100 / (1 + rs))
 # Signal = -1 (sell) when RSI is overbought (above 70)
 # Signal = 0 otherwise (no strong signal, stay out / hold)
 data["Signal"] = 0
-data.loc[data["RSI"] < 30, "Signal"] = 1
-data.loc[data["RSI"] > 70, "Signal"] = -1
+data.loc[data["RSI"] < 25, "Signal"] = 1
+data.loc[data["RSI"] > 75, "Signal"] = -1
 
 print(data[["Close", "RSI"]].tail(15))
 
