@@ -57,6 +57,18 @@ bo_data["Signal"] = bo_data["Signal"].replace(0, None).ffill().fillna(0)
 bo_results = run_backtest(bo_data, strategy_name="Breakout (20-day)")
 results_summary.append(("Breakout (20-day)", bo_results))
 
+# --- Strategy 4: MACD ---
+macd_data = data.copy()
+ema_fast = macd_data["Close"].ewm(span=12, adjust=False).mean()
+ema_slow = macd_data["Close"].ewm(span=26, adjust=False).mean()
+macd_data["MACD_Line"] = ema_fast - ema_slow
+macd_data["Signal_Line"] = macd_data["MACD_Line"].ewm(span=9, adjust=False).mean()
+macd_data["Signal"] = 0
+macd_data.loc[macd_data["MACD_Line"] > macd_data["Signal_Line"], "Signal"] = 1
+macd_data.loc[macd_data["MACD_Line"] < macd_data["Signal_Line"], "Signal"] = -1
+macd_results = run_backtest(macd_data, strategy_name="MACD (12/26/9)")
+results_summary.append(("MACD (12/26/9)", macd_results))
+
 # --- Print Summary Table ---
 print("\n\n========== SUMMARY ==========")
 print(f"{'Strategy':<28}{'Return':>12}{'Buy&Hold':>12}{'Max DD':>12}")

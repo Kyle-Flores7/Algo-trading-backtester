@@ -16,9 +16,15 @@ Strategy Total Return: 18.32%
 Buy & Hold Total Return: 314.09%
 Max Drawdown: -28.53%
 
+--- MACD (12/26/9) ---
+Strategy Total Return: -5.98%
+Buy & Hold Total Return: 314.09%
+Max Drawdown: -38.28%
+
 
 ========== SUMMARY ==========
 Strategy                          Return    Buy&Hold      Max DD
 SMA Crossover (20/50)            15.73%     314.09%     -46.69%
 RSI Mean-Reversion (25/75)       34.72%     314.09%     -10.51%
 Breakout (20-day)                18.32%     314.09%     -28.53%
+MACD (12/26/9)                   -5.98%     314.09%     -38.28%
