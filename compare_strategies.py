@@ -11,7 +11,7 @@ buy-and-hold and against each other.
 import yfinance as yf
 from backtest import run_backtest
 
-ticker = "SPY"
+ticker = "AAPL"
 period = "10y"
 
 print(f"Downloading {ticker} data ({period})...\n")
