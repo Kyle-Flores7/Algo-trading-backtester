@@ -69,6 +69,19 @@ macd_data.loc[macd_data["MACD_Line"] < macd_data["Signal_Line"], "Signal"] = -1
 macd_results = run_backtest(macd_data, strategy_name="MACD (12/26/9)")
 results_summary.append(("MACD (12/26/9)", macd_results))
 
+# --- Strategy 5: Bollinger Bands ---
+bb_data = data.copy()
+bb_window = 20
+bb_data["Middle_Band"] = bb_data["Close"].rolling(window=bb_window).mean()
+bb_data["StdDev"] = bb_data["Close"].rolling(window=bb_window).std()
+bb_data["Upper_Band"] = bb_data["Middle_Band"] + (2 * bb_data["StdDev"])
+bb_data["Lower_Band"] = bb_data["Middle_Band"] - (2 * bb_data["StdDev"])
+bb_data["Signal"] = 0
+bb_data.loc[bb_data["Close"] <= bb_data["Lower_Band"], "Signal"] = 1
+bb_data.loc[bb_data["Close"] >= bb_data["Upper_Band"], "Signal"] = -1
+bb_results = run_backtest(bb_data, strategy_name="Bollinger Bands (20, 2std)")
+results_summary.append(("Bollinger Bands (20, 2std)", bb_results))
+
 # --- Print Summary Table ---
 print("\n\n========== SUMMARY ==========")
 print(f"{'Strategy':<28}{'Return':>12}{'Buy&Hold':>12}{'Max DD':>12}")

@@ -32,27 +32,30 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backtest import run_backtest
 
-ticker = "SPY"
-data = yf.download(ticker, period="10y")
+tickers = ["SPY", "QQQ", "AAPL"]
 
-# Flatten multi-level columns from yfinance
-data.columns = data.columns.get_level_values(0)
+for ticker in tickers:
+    data = yf.download(ticker, period="10y")
 
-# --- Calculate Bollinger Bands ---
-window = 20
-data["Middle_Band"] = data["Close"].rolling(window=window).mean()
-data["StdDev"] = data["Close"].rolling(window=window).std()
-data["Upper_Band"] = data["Middle_Band"] + (2 * data["StdDev"])
-data["Lower_Band"] = data["Middle_Band"] - (2 * data["StdDev"])
+    # Flatten multi-level columns from yfinance
+    data.columns = data.columns.get_level_values(0)
 
-# --- Generate Signals ---
-# Buy: price drops below (or touches) the lower band
-# Sell: price rises above (or touches) the upper band
-data["Signal"] = 0
-data.loc[data["Close"] <= data["Lower_Band"], "Signal"] = 1
-data.loc[data["Close"] >= data["Upper_Band"], "Signal"] = -1
+    # --- Calculate Bollinger Bands ---
+    window = 20
+    data["Middle_Band"] = data["Close"].rolling(window=window).mean()
+    data["StdDev"] = data["Close"].rolling(window=window).std()
+    data["Upper_Band"] = data["Middle_Band"] + (2 * data["StdDev"])
+    data["Lower_Band"] = data["Middle_Band"] - (2 * data["StdDev"])
 
-print(data[["Close", "Lower_Band", "Middle_Band", "Upper_Band", "Signal"]].tail(15))
+    # --- Generate Signals ---
+    # Buy: price drops below (or touches) the lower band
+    # Sell: price rises above (or touches) the upper band
+    data["Signal"] = 0
+    data.loc[data["Close"] <= data["Lower_Band"], "Signal"] = 1
+    data.loc[data["Close"] >= data["Upper_Band"], "Signal"] = -1
 
-# --- Backtest Performance (shared helper) ---
-results = run_backtest(data, strategy_name="Bollinger Bands (20, 2std)")
+    print(f"\n=== {ticker} ===")
+    print(data[["Close", "Lower_Band", "Middle_Band", "Upper_Band", "Signal"]].tail(15))
+
+    # --- Backtest Performance (shared helper) ---
+    results = run_backtest(data, strategy_name=f"Bollinger Bands (20, 2std) - {ticker}")

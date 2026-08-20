@@ -2,23 +2,35 @@ Downloading QQQ data (10y)...
 
 
 --- SMA Crossover (20/50) ---
-Strategy Total Return: 24.34%
-Buy & Hold Total Return: 556.94%
+Strategy Total Return: 26.90%
+Buy & Hold Total Return: 548.84%
 Max Drawdown: -37.87%
 
 --- RSI Mean-Reversion (25/75 tuned) ---
 Strategy Total Return: 51.94%
-Buy & Hold Total Return: 556.94%
+Buy & Hold Total Return: 548.84%
 Max Drawdown: -11.57%
 
 --- Breakout (20-day) ---
-Strategy Total Return: 10.82%
-Buy & Hold Total Return: 556.94%
+Strategy Total Return: 9.46%
+Buy & Hold Total Return: 548.84%
 Max Drawdown: -51.78%
+
+--- MACD (12/26/9) ---
+Strategy Total Return: -41.20%
+Buy & Hold Total Return: 548.84%
+Max Drawdown: -48.91%
+
+--- Bollinger Bands (20, 2std) ---
+Strategy Total Return: 64.71%
+Buy & Hold Total Return: 548.84%
+Max Drawdown: -13.25%
 
 
 ========== SUMMARY ==========
 Strategy                          Return    Buy&Hold      Max DD
-SMA Crossover (20/50)            24.34%     556.94%     -37.87%
-RSI Mean-Reversion (25/75)       51.94%     556.94%     -11.57%
-Breakout (20-day)                10.82%     556.94%     -51.78%
+SMA Crossover (20/50)            26.90%     548.84%     -37.87%
+RSI Mean-Reversion (25/75)       51.94%     548.84%     -11.57%
+Breakout (20-day)                 9.46%     548.84%     -51.78%
+MACD (12/26/9)                  -41.20%     548.84%     -48.91%
+Bollinger Bands (20, 2std)       64.71%     548.84%     -13.25%

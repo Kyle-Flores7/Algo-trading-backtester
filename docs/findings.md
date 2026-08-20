@@ -6,12 +6,13 @@ Historical backtest results and tuning conclusions, moved out of CLAUDE.md so th
 
 | Strategy | Ticker | Return | Buy & Hold | Max Drawdown |
 |---|---|---|---|---|
-| SMA Crossover (20/50) | SPY | +15.73% | +314.09% | -46.69% |
-| RSI Mean-Reversion (25/75) | SPY | +34.72% | +314.09% | -10.51% |
-| Breakout (20-day) | SPY | +18.32% | +314.09% | -28.53% |
-| MACD (12/26/9) | SPY | -5.98% | +314.09% | -38.28% |
+| SMA Crossover (20/50) | SPY | +13.93% | +310.26% | -46.69% |
+| RSI Mean-Reversion (25/75) | SPY | +34.40% | +310.26% | -10.51% |
+| Breakout (20-day) | SPY | +17.85% | +310.26% | -28.53% |
+| MACD (12/26/9) | SPY | -5.99% | +310.26% | -38.28% |
+| Bollinger Bands (20, 2std) | SPY | +70.49% | +310.26% | -8.53% |
 
-(See `results/*.txt` for saved per-ticker runs on SPY, QQQ, and AAPL.)
+(See `results/*.txt` for saved per-ticker runs on SPY, QQQ, and AAPL. Return/buy-hold figures shift slightly between runs since `yfinance` pulls a rolling 10y window from "today.")
 
 ## RSI mean-reversion threshold tuning (SPY, 10y)
 
@@ -32,6 +33,16 @@ Hypothesis: gating RSI signals with a trend filter (only take dip-buys in an upt
 
 **Conclusion**: every filtered version underperformed plain RSI on return; drawdown reduction never justified the return given up. Hypothesis disproven — trend filtering was not a free improvement.
 
+## Bollinger Bands (20, 2std) across tickers
+
+Added as a second mean-reversion strategy — same "bet on a snap-back" philosophy as RSI, but measuring price against its own recent volatility (bands) instead of a fixed 0-100 momentum scale (RSI).
+
+- SPY: +70.49% return, -8.53% max drawdown — beats RSI on both return and drawdown
+- QQQ: +64.71% return, -13.25% max drawdown — beats RSI on return, slightly worse drawdown
+- AAPL: -8.81% return, -23.64% max drawdown — underperforms RSI (+41.27%) on this ticker
+
+**Takeaway**: Bollinger Bands outperformed RSI mean-reversion on the two broad-index ETFs (SPY, QQQ) by a wide margin on return, but lost money on AAPL where RSI stayed solidly positive. This mirrors the earlier pattern seen with trend-following strategies on AAPL — a single stock with strong sustained trends behaves differently than diversified index ETFs, so no strategy tested so far wins across all three tickers. Worth treating per-ticker performance, not just an aggregate winner, as the more honest way to compare strategies going forward.
+
 ## Running conclusion as of last test
 
-Plain, unfiltered RSI mean-reversion (25/75, 14-day) has been the most consistent risk-adjusted performer across SPY, QQQ, and AAPL, outperforming every trend-following strategy (SMA, Breakout, MACD) and every hybrid filter tested so far. Treat this as the baseline to beat in future strategy work, not a permanent conclusion — it reflects the specific tickers/period tested.
+No single strategy tested so far wins on every ticker. RSI mean-reversion (25/75, 14-day) remains the most *consistent* performer across SPY, QQQ, and AAPL (positive return and controlled drawdown on all three). Bollinger Bands (20, 2std) now outperforms it on SPY and QQQ specifically, but underperforms on AAPL. Treat both as current baselines to beat, not a permanent conclusion — this reflects the specific tickers/period tested.
