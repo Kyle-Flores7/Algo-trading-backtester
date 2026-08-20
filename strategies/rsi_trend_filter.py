@@ -7,44 +7,47 @@ This combines two things we've already tested separately:
 
 1. RSI Mean-Reversion (25/75) - our safest, most consistent strategy across
    SPY, QQQ, and AAPL (best drawdown control every time)
-2. A 200-day SMA trend filter - a classic "is this a bull or bear regime"
-   marker
+2. A trend filter (SMA-based) - a "is this a bull or bear regime" marker
 
 THE HYPOTHESIS:
 On AAPL, pure RSI mean-reversion underperformed trend-following strategies
-(MACD, Breakout) because AAPL had strong, sustained uptrends - and RSI kept
-betting AGAINST those trends every time price got "overbought." This hybrid
-only takes RSI's buy signals when price is ABOVE the 200-day SMA (buying
-dips within an established uptrend, not catching a falling knife in a
-downtrend), and only takes sell signals when price is BELOW the 200-day SMA.
+because AAPL had strong, sustained uptrends - and RSI kept betting AGAINST
+those trends every time price got "overbought." The idea: only take RSI
+signals that agree with the broader trend.
 
-In other words: use RSI to time entries, but let the long-term trend decide
-which direction is even allowed.
+FOUR VERSIONS TESTED (all on AAPL, 10yr):
 
-If this improves on plain RSI (especially on trending stocks like AAPL),
-that's real evidence combining ideas beats using either alone.
+  Baseline - Plain RSI, no filter:
+    +43.70% return, -28.69% max drawdown   <- STILL THE BEST
 
-RESULTS - THE HYPOTHESIS WAS WRONG (or at least this version was):
+  v1 - 200-day SMA filter, BOTH directions gated:
+    +3.48% return, -19.24% max drawdown
 
-  SPY:  Plain RSI +34.72% / -10.51% DD  ->  Hybrid -9.26% / -9.63% DD
-  AAPL: Plain RSI +43.70% / -28.69% DD  ->  Hybrid  +3.48% / -19.24% DD
+  v2 - 200-day SMA filter, only BUY side gated:
+    +11.49% return, -29.84% max drawdown
 
-On BOTH tickers, the hybrid reduced drawdown somewhat, but return collapsed
-far more than the risk reduction justified. The filter was too restrictive:
-requiring BOTH "RSI extreme" AND "trend agrees" at the same time cut out far
-more good trades than bad ones, leaving the strategy mostly sitting flat.
+  v3 - 50-day SMA filter, BOTH directions gated:
+    -0.35% return, -2.62% max drawdown   (best drawdown, but flat return)
 
-WHY THIS IS STILL VALUABLE:
-This disproves an intuitive-sounding idea with real evidence rather than
-assumption - a good reminder that "this should logically work better" is
-not the same as "this tested better." Backtesting exists exactly to catch
-cases like this before risking real money on a plausible-sounding idea.
+CONCLUSION:
+Every filtered version underperformed plain RSI on return. Filtering did
+sometimes reduce drawdown (v1, v3), but never by enough to justify how much
+return it cost - and v2 (filtering only the buy side) actually made
+drawdown WORSE while barely improving return. A faster filter (v3, 50-day)
+minimized risk almost entirely but essentially killed the strategy's
+ability to generate any real return at all.
 
-NEXT IDEAS TO TRY (not yet tested):
-  - A shorter/looser trend filter (e.g. 50-day SMA instead of 200-day),
-    so it reacts faster and filters less aggressively
-  - Only filtering SELL signals against the trend, not both directions
-  - Requiring trend agreement as a "tiebreaker" rather than a hard gate
+TAKEAWAY: plain, unfiltered RSI mean-reversion remains the strongest
+strategy in this library, across every ticker AND every filtering attempt
+tested. This is a genuinely useful finding - it would have been easy to
+assume "adding a trend filter should obviously help" and just trade that
+belief without testing it. The data says otherwise, at least for this
+specific combination of indicators. Not every intuitive improvement is a
+real improvement - that's exactly what backtesting is for.
+
+This file keeps the v1 (200-day, both directions gated) version as the
+active code below, as a working reference implementation of the hybrid
+approach, even though it hasn't beaten the baseline.
 """
 
 import yfinance as yf
@@ -75,7 +78,6 @@ data["Uptrend"] = data["Close"] > data["SMA_200"]
 # --- Generate Signals ---
 # Buy: RSI oversold AND price above 200-day SMA (dip in an uptrend)
 # Sell: RSI overbought AND price below 200-day SMA (bounce in a downtrend)
-# Otherwise: no signal (stay flat) - this filters out counter-trend bets
 data["Signal"] = 0
 data.loc[(data["RSI"] < 25) & (data["Uptrend"] == True), "Signal"] = 1
 data.loc[(data["RSI"] > 75) & (data["Uptrend"] == False), "Signal"] = -1
@@ -83,4 +85,4 @@ data.loc[(data["RSI"] > 75) & (data["Uptrend"] == False), "Signal"] = -1
 print(data[["Close", "RSI", "SMA_200", "Uptrend", "Signal"]].tail(15))
 
 # --- Backtest Performance (shared helper) ---
-results = run_backtest(data, strategy_name="RSI + Trend Filter (Hybrid)")
+results = run_backtest(data, strategy_name="RSI + Trend Filter (Hybrid v1)")
