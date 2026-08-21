@@ -13,9 +13,22 @@ range" - a reference level for the rest of the day.
 - If price CLOSES BELOW the opening range low after 9:45 -> read as
   bearish continuation -> go SHORT for the rest of the day
 - Whichever direction triggers first "wins" for the day - once positioned,
-  hold to the close. No reversing mid-day.
-- Exit at market close (4:00 PM ET). No overnight positions, ever - this is
+  hold until stopped out, target hit, or market close. No reversing mid-day.
+
+Risk management (1:2 risk/reward):
+The opening range size (high - low) is used as the "risk unit" for the
+trade, since it's a natural measure of how much this stock is moving that
+morning:
+- Stop-loss: 1x the opening range, against the trade direction
+- Profit target: 2x the opening range, in the trade direction
+- Whichever is hit first - stop, target, or market close (4:00 PM ET) if
+  neither is hit - closes the trade. No overnight positions, ever, this is
   a pure day-trading strategy, not swing trading with intraday timing.
+
+If a single 5-minute bar's high/low range touches both the stop and the
+target (a wide or gappy bar), the stop is assumed to hit first - the
+conservative assumption, since we can't see what happened first within
+the bar from 5-minute OHLC data alone.
 
 This is intraday, not daily, data - each day is tested independently rather
 than one continuous equity curve like the swing strategies in strategies/.
@@ -63,22 +76,27 @@ for day, day_data in data.groupby(data.index.date):
     days_tested += 1
     or_high = opening_range["High"].max()
     or_low = opening_range["Low"].min()
+    or_range = or_high - or_low
 
     after_open = day_data.between_time("09:45", "15:55")
     close_price = day_data["Close"].iloc[-1]
 
     direction = None
     entry_price = None
+    entry_idx = None
 
     # Walk forward 5-minute bar by bar - take whichever breakout happens first
-    for _, row in after_open.iterrows():
+    for i in range(len(after_open)):
+        row = after_open.iloc[i]
         if row["Close"] > or_high:
             direction = "LONG"
             entry_price = row["Close"]
+            entry_idx = i
             break
         elif row["Close"] < or_low:
             direction = "SHORT"
             entry_price = row["Close"]
+            entry_idx = i
             break
 
     if direction is None:
@@ -87,13 +105,42 @@ for day, day_data in data.groupby(data.index.date):
         continue
 
     if direction == "LONG":
-        pnl = close_price - entry_price
+        stop_price = entry_price - or_range
+        target_price = entry_price + 2 * or_range
     else:
-        pnl = entry_price - close_price
+        stop_price = entry_price + or_range
+        target_price = entry_price - 2 * or_range
+
+    exit_price = close_price
+    exit_reason = "close"
+
+    # Check each bar after entry for a stop or target hit, using intrabar
+    # high/low (not just closes) since a stop/target can be hit mid-bar.
+    for j in range(entry_idx + 1, len(after_open)):
+        bar = after_open.iloc[j]
+        if direction == "LONG":
+            if bar["Low"] <= stop_price:
+                exit_price, exit_reason = stop_price, "stop"
+                break
+            elif bar["High"] >= target_price:
+                exit_price, exit_reason = target_price, "target"
+                break
+        else:
+            if bar["High"] >= stop_price:
+                exit_price, exit_reason = stop_price, "stop"
+                break
+            elif bar["Low"] <= target_price:
+                exit_price, exit_reason = target_price, "target"
+                break
+
+    if direction == "LONG":
+        pnl = exit_price - entry_price
+    else:
+        pnl = entry_price - exit_price
 
     trades.append(pnl)
     print(f"{day}: {direction} | Entry = {entry_price:.2f} | "
-          f"Exit = {close_price:.2f} | P/L = {pnl:+.2f} points")
+          f"Exit = {exit_price:.2f} ({exit_reason}) | P/L = {pnl:+.2f} points")
 
 # --- Summary ---
 print("\n--- Summary ---")
