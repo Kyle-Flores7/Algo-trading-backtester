@@ -1,0 +1,35 @@
+Downloading TSLA data (10y)...
+
+--- SMA Crossover (20/50) ---
+Strategy Total Return: -64.83%
+Buy & Hold Total Return: 2351.79%
+Max Drawdown: -87.32%
+
+--- RSI Mean-Reversion (25/75 tuned) ---
+Strategy Total Return: -92.09%
+Buy & Hold Total Return: 2351.79%
+Max Drawdown: -94.94%
+
+--- Breakout (20-day) ---
+Strategy Total Return: -12.44%
+Buy & Hold Total Return: 2351.79%
+Max Drawdown: -86.85%
+
+--- MACD (12/26/9) ---
+Strategy Total Return: 639.99%
+Buy & Hold Total Return: 2351.79%
+Max Drawdown: -72.78%
+
+--- Bollinger Bands (20, 2std) ---
+Strategy Total Return: -87.10%
+Buy & Hold Total Return: 2351.79%
+Max Drawdown: -91.69%
+
+
+========== SUMMARY ==========
+Strategy                          Return    Buy&Hold      Max DD
+SMA Crossover (20/50)           -64.83%    2351.79%     -87.32%
+RSI Mean-Reversion (25/75)      -92.09%    2351.79%     -94.94%
+Breakout (20-day)               -12.44%    2351.79%     -86.85%
+MACD (12/26/9)                  639.99%    2351.79%     -72.78%
+Bollinger Bands (20, 2std)      -87.10%    2351.79%     -91.69%
