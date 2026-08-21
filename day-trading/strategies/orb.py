@@ -19,7 +19,7 @@ Risk management (1:2 risk/reward):
 The opening range size (high - low) is used as the "risk unit" for the
 trade, since it's a natural measure of how much this stock is moving that
 morning:
-- Stop-loss: 1x the opening range, against the trade direction
+- Stop-loss: 1.5x the opening range, against the trade direction
 - Profit target: 2x the opening range, in the trade direction
 - Whichever is hit first - stop, target, or market close (4:00 PM ET) if
   neither is hit - closes the trade. No overnight positions, ever, this is
@@ -105,10 +105,10 @@ for day, day_data in data.groupby(data.index.date):
         continue
 
     if direction == "LONG":
-        stop_price = entry_price - or_range
+        stop_price = entry_price - 1.5 * or_range
         target_price = entry_price + 2 * or_range
     else:
-        stop_price = entry_price + or_range
+        stop_price = entry_price + 1.5 * or_range
         target_price = entry_price - 2 * or_range
 
     exit_price = close_price
