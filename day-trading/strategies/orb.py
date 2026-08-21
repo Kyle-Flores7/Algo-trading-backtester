@@ -22,16 +22,20 @@ than one continuous equity curve like the swing strategies in strategies/.
 backtest.py's run_backtest() assumes one row per day and can't be reused
 here, so P/L is tracked manually, one trading day at a time.
 
-Data note: yfinance only allows 8 days of 1-minute history per request, so
-this is a small sample - useful for proving the logic works, not for
-drawing real performance conclusions.
+Data note: yfinance caps 1-minute history at 8 trading days per request,
+which was too small a sample to draw much from. 5-minute bars relax that
+cap to 60 calendar days - 60 actual trading days of data - a meaningfully
+bigger sample, at the cost of coarser resolution on exactly when a
+breakout happens within each 5-minute bar. The opening range is now the
+first three 5-minute bars (9:30, 9:35, 9:40), covering the same 9:30-9:45
+AM window as before.
 """
 
 import pandas as pd
 import yfinance as yf
 
 ticker = "QQQ"
-data = yf.download(ticker, period="8d", interval="1m")
+data = yf.download(ticker, period="60d", interval="5m")
 
 # Flatten multi-level columns from yfinance (e.g. "Close"/"QQQ" stacked)
 data.columns = data.columns.get_level_values(0)
@@ -43,13 +47,16 @@ trades = []
 days_tested = 0
 
 for day, day_data in data.groupby(data.index.date):
-    opening_range = day_data.between_time("09:30", "09:44")
+    # Opening range = first three 5-minute bars (9:30, 9:35, 9:40),
+    # covering the same 9:30-9:45 AM window as the 1-minute version.
+    opening_range = day_data.between_time("09:30", "09:40")
     if opening_range.empty:
         continue
 
     # Skip the current/incomplete trading day - its last bar won't reach
     # market close yet, so it has no real exit price to measure P/L against.
-    if day_data.index[-1].time() < pd.Timestamp("15:59").time():
+    # A completed day's last 5-minute bar is 15:55 (covers 15:55-16:00).
+    if day_data.index[-1].time() < pd.Timestamp("15:55").time():
         print(f"{day}: Skipped - incomplete session (in progress)")
         continue
 
@@ -57,13 +64,13 @@ for day, day_data in data.groupby(data.index.date):
     or_high = opening_range["High"].max()
     or_low = opening_range["Low"].min()
 
-    after_open = day_data.between_time("09:45", "15:59")
+    after_open = day_data.between_time("09:45", "15:55")
     close_price = day_data["Close"].iloc[-1]
 
     direction = None
     entry_price = None
 
-    # Walk forward minute by minute - take whichever breakout happens first
+    # Walk forward 5-minute bar by bar - take whichever breakout happens first
     for _, row in after_open.iterrows():
         if row["Close"] > or_high:
             direction = "LONG"
