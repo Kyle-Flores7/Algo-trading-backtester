@@ -101,6 +101,11 @@ print(f"Days tested: {days_tested}")
 print(f"Trades taken: {len(trades)}")
 if trades:
     total_pnl = sum(trades)
-    wins = sum(1 for p in trades if p > 0)
+    winners = [p for p in trades if p > 0]
+    losers = [p for p in trades if p < 0]
     print(f"Total P/L: {total_pnl:+.2f} points")
-    print(f"Win rate: {wins}/{len(trades)} ({wins / len(trades):.0%})")
+    print(f"Win rate: {len(winners)}/{len(trades)} ({len(winners) / len(trades):.0%})")
+    if winners:
+        print(f"Average win: {sum(winners) / len(winners):+.2f} points")
+    if losers:
+        print(f"Average loss: {sum(losers) / len(losers):+.2f} points")
