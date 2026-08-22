@@ -64,10 +64,14 @@ first three 5-minute bars (9:30, 9:35, 9:40), covering the 9:30-9:45 AM
 window.
 """
 
+import sys
+
 import pandas as pd
 import yfinance as yf
 
-ticker = "QQQ"
+# Ticker defaults to QQQ but can be overridden, e.g. `python orb_sweep.py SPY`,
+# to compare the same sweep-and-reverse logic across underlyings.
+ticker = sys.argv[1] if len(sys.argv) > 1 else "QQQ"
 data = yf.download(ticker, period="60d", interval="5m")
 
 # Flatten multi-level columns from yfinance (e.g. "Close"/"QQQ" stacked)
