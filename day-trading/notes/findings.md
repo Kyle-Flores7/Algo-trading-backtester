@@ -171,3 +171,103 @@ days and only fires when timing + sweep + trend + momentum all agree.
 Whether that confluence actually exists in the data, or just overfits the
 60-day sample, is the open question the next strategy needs to answer -
 and the concentration check stays mandatory for judging it.
+
+---
+
+## Follow-up: multi-factor v1 (session + trend + RSI) - worse, -$933.83
+
+`multifactor_v1.py`. First test of the multi-factor direction above. Kept
+the RSI 25/75 14-period signal completely unchanged and required TWO
+context filters to also be true before entering:
+
+1. **Session filter** - entry only inside 9:30-11:00 AM ET (the highest-
+   volume window, wider than the opening range but not the whole day).
+2. **Higher-timeframe trend filter** - daily MNQ=F data pulled separately,
+   50-day SMA; longs only when the prior completed daily close is above
+   it, shorts only when below. Prior day's close (not the trade day's) to
+   avoid lookahead.
+
+Everything else carried over from `rsi_intraday.py` unchanged: ATR-based
+1.5x/2x stop/target, one trade per day, incomplete-day exclusion, futures
+overnight-session filtering. Entry scan ran 9:30-11:00; trade management
+continued to the 4:00 PM close.
+
+Result over 49 trading days:
+
+| Metric | Value |
+|---|---|
+| Total P/L | **-466.91 points (-$933.83)** |
+| Win rate | 4/14 (29%) |
+| Average win | +80.72 points |
+| Average loss | -78.98 points |
+| Concentration | top 3 winners = **78%** of gross profit (of 4 winners) |
+
+Selectivity funnel (how much the filters cut the raw signal):
+
+| Stage | Days |
+|---|---|
+| RSI(14) extreme anywhere in the cash session | **49 / 49** |
+| ...also inside the 9:30-11:00 AM window | 32 |
+| ...and trend-aligned -> actually traded | 14 |
+
+### What this test showed
+
+**1. Worse than plain RSI intraday, not better.** -$933.83 vs the
+standalone RSI intraday null of -$49.64. The surviving 14-trade subset had
+a *lower* win rate (29% vs 49%), and the P/L now leans on 3 trades (78%
+concentration) - the exact fragility the concentration check exists to
+flag. So this is a fragile loser, worse on every axis than the honest
+null it was trying to improve.
+
+**2. The "context was the missing ingredient" hypothesis is not
+supported.** Adding session timing + trend alignment as gates did not turn
+the RSI signal into an edge. The filters are genuinely selective (49
+candidate days cut to 14, a 71% reduction), but selective in a way that
+didn't concentrate *good* trades - just fewer trades.
+
+**3. The important finding - RSI 25/75 is not a rare event on 5-minute
+bars.** Every single tested day (49/49) had RSI(14) touch below 25 or
+above 75 somewhere in the cash session. On daily bars in the swing
+library, a 25/75 reading means price is genuinely stretched and it happens
+infrequently - that rarity is *what makes the signal mean something*. At
+5-minute resolution the same thresholds are hit constantly, because
+70 minutes of one-directional drift is enough to pin RSI to an extreme.
+The number 25/75 was ported down from daily bars, but the *meaning* it
+carried up there (stretched, infrequent, mean-reversion likely) did not
+come with it.
+
+### Revised conclusion
+
+The problem may not be "single signals need more confirmation" - that
+framing led to multifactor_v1, which failed. The problem may be **RSI
+specifically is the wrong tool at this timeframe.** Its core assumption -
+that extremes are rare and therefore informative - breaks down at high
+resolution, where extremes are common and therefore closer to noise.
+Adding filters on top of a signal whose base assumption is broken can't
+fix it.
+
+More broadly, this casts doubt on the whole approach of taking a
+daily-timeframe concept (RSI mean-reversion, or arguably even the
+opening-range breakout logic) and porting it down to 5-minute bars and
+expecting the same behaviour. Concepts don't automatically survive a
+change of timeframe.
+
+### Next direction
+
+Look for a genuinely **intraday-native** signal - something whose logic is
+built around intraday market structure from the start, not a daily concept
+scaled down. Candidates worth researching before coding anything:
+
+- Volume-based signals (relative volume vs the same time-of-day average,
+  volume spikes on the break) - volume is inherently an intraday concept
+  and we haven't used it at all yet.
+- VWAP and VWAP-relative position - a genuinely intraday reference level,
+  unlike a daily SMA.
+- Time-of-day patterns in their own right (open drive, lunch-hour chop,
+  the last-hour move) rather than as a filter bolted onto something else.
+- Opening-range interaction measured more carefully than the plain
+  breakout / sweep binary already tried.
+
+The multi-factor confluence idea isn't dead, but it should be built out of
+intraday-native components, not a daily signal plus filters. Concentration
+check stays mandatory for judging whatever comes next.
