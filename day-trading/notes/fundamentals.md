@@ -7,6 +7,9 @@ daily), different mechanics (futures, not stocks), different timeframe.
 Goal: understand the fundamentals thoroughly before writing any code, same
 discipline used for the swing-trading strategies - concept first, then code.
 
+For backtest results and conclusions from the strategies built on top of
+these concepts, see `findings.md` in this folder.
+
 ---
 
 ## Futures Contracts - The Basics
