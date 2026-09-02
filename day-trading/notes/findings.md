@@ -271,3 +271,129 @@ scaled down. Candidates worth researching before coding anything:
 The multi-factor confluence idea isn't dead, but it should be built out of
 intraday-native components, not a daily signal plus filters. Concentration
 check stays mandatory for judging whatever comes next.
+
+---
+
+## Intraday-native attempt: VWAP pullback and two attempts to improve it
+
+### Baseline - vwap_intraday.py (plain, 1.5x/2.0x) - the best result in the track
+
+`vwap_intraday.py`. First intraday-native signal: per-day VWAP, reset at
+9:30, built from that day's own price x volume - no multi-day lookback, no
+ported "extreme" threshold. The first cash-session bar that closes off
+VWAP sets a LONG-only or SHORT-only bias; entry is the first later bar
+that pulls back to touch VWAP but closes back on the bias side (VWAP as
+dynamic support/resistance). ATR 20-bar risk unit, 1.5x stop / 2.0x
+target, one trade per day, 9:30-16:00 ET only.
+
+A **$25 round-trip cost per trade** (commission + slippage for one MNQ
+contract, ~12.5 points at $2/point) is now modelled on every VWAP result
+below - gross P/L first, then net after costs.
+
+| Metric | Value |
+|---|---|
+| Trades | 49 / 49 days |
+| Total P/L (gross) | +572.36 points (+$1,144.71) |
+| Total P/L (net, after $25/trade) | **-40.14 points (-$80.28)** |
+| Win rate | 25/49 (51%) |
+| Average win / loss | +83.68 / -63.32 points |
+| Concentration | top 3 winners = **21%** of gross profit (of 25 winners) |
+
+This is the strongest result the day-trading track has produced: nearly
+break-even after realistic costs, an above-coin-flip 51% win rate, and -
+critically - **evenly distributed** (21% top-3 concentration across 25
+winners, no hidden outlier). It's not a confirmed edge on a 60-day
+sample, but it's the first result that is both positive-ish and
+trustworthy. Two attempts to push it over the line followed.
+
+### 1. vwap_selective.py - volume-confirmation filter - worse, -$1,012.81
+
+`vwap_selective.py`. Same VWAP signal, plus a two-bar volume filter on the
+entry: the bar that touches VWAP must be on **below-average** volume (a
+20-bar rolling mean - a genuine pause, not a breakdown), AND the next bar,
+which must close back on the bias side, must be on **above-average**
+volume (real conviction returning). Same ATR 1.5x/2.0x, same session, same
+one-trade-per-day cap, same $25 cost model.
+
+| Metric | vwap_selective | baseline |
+|---|---|---|
+| Trades | **19 / 49 days** | 49 / 49 |
+| Total P/L (gross) | -268.91 pts (-$537.81) | +572.36 pts (+$1,144.71) |
+| Total P/L (net) | **-506.41 pts (-$1,012.81)** | -40.14 pts (-$80.28) |
+| Win rate | **37%** (7/19) | 51% (25/49) |
+| Average win / loss | +76.69 / -67.14 pts | +83.68 / -63.32 pts |
+| Concentration | top 3 = **57%** of gross profit (of 7) | top 3 = 21% (of 25) |
+
+The filter did exactly what it was built to do *mechanically* - trade
+count fell 61%, from 49 to 19. But every quality metric got worse: win
+rate dropped 51% -> 37%, gross P/L flipped from +572 to -269 points, and
+profit concentrated into 3 of just 7 winners (57%). **The volume rule
+removed signal, not noise.** The "thin pause, then a conviction surge
+reclaiming VWAP" pattern is not a marker of higher-quality setups in this
+sample - the setups it kept were the bad ones.
+
+### 2. vwap_tight_rr.py - tighter 1.0x/1.5x risk/reward - worse, -$1,118.30
+
+`vwap_tight_rr.py`. Only the exit geometry changed: **1.0x ATR stop /
+1.5x ATR target** instead of 1.5x/2.0x. Entry signal, session, cap and
+cost model untouched, so trade count is identical (49/49) and the results
+are directly comparable. Hypothesis: the 51%-but-negative baseline meant
+trades were reaching favourable ground then giving it back before
+travelling the full 2x ATR to target, so a nearer target should bank
+those stalled moves as clean wins.
+
+| Metric | vwap_tight_rr (1.0x/1.5x) | baseline (1.5x/2.0x) |
+|---|---|---|
+| Trades | 49 / 49 days | 49 / 49 |
+| Total P/L (gross) | **+53.35 pts (+$106.70)** | +572.36 pts (+$1,144.71) |
+| Total P/L (net) | **-559.15 pts (-$1,118.30)** | -40.14 pts (-$80.28) |
+| Win rate | **41%** (20/49) | 51% (25/49) |
+| Average win / loss | +63.38 / -41.87 pts | +83.68 / -63.32 pts |
+| Concentration | top 3 = 25% of gross profit (of 20) | top 3 = 21% (of 25) |
+
+Hypothesis rejected, and the root cause is the stop, not the target.
+Moving the stop from 1.5x to 1.0x ATR puts it **inside VWAP's normal
+noise band**: win rate fell 51% -> 41% as dips that the 1.5x stop absorbed
+and that later recovered turned into realized losses. The nearer target
+did not compensate (average win -20 pts), so gross P/L collapsed from
++572 to +53 points. **The 1.5x stop width isn't arbitrary padding - it's
+what lets a legitimately good trade survive a pullback and recover.**
+Tightening it converts recoverable trades into losers.
+
+---
+
+## Conclusion for the day-trading track
+
+**Plain VWAP (`vwap_intraday.py`, unfiltered, 1.5x/2.0x) remains the best
+and only near-viable result found across the entire track** - close to
+break-even after realistic $25/trade costs (-$80.28), evenly distributed
+(21% top-3 concentration, healthy), with no outlier propping it up. Both
+attempts to improve it - a selectivity filter and a tighter risk/reward -
+made it *meaningfully worse*, not better.
+
+That the setup resists improvement from two different directions suggests
+it sits near a **local optimum** for this signal / timeframe / sample: the
+plain version is about as much as this particular VWAP-pullback structure
+yields, and squeezing it further just breaks what was working.
+
+### Directions worth considering next
+
+- **More data / a different window.** The single most important open
+  question is whether -$80 after costs is real residual signal or just
+  where the noise landed on this 60-day sample. Re-run on a different
+  time window (or stitch several 60-day pulls) before trusting the number
+  either way.
+- **Position size vs the cost-to-edge ratio.** The $25/trade cost is
+  fixed per contract; the edge (if any) scales with size. Testing whether
+  a larger position changes the after-cost picture is cheap to check,
+  though it doesn't create edge where there is none - it only rescales an
+  existing one.
+- **A genuinely different structural change** rather than another filter
+  or exit tweak on the current setup. Both improvement attempts so far
+  have been modifications *to* the vwap_intraday.py entry/exit; the next
+  idea should change the structure (e.g. a different entry trigger
+  relative to VWAP, a VWAP-band / standard-deviation envelope, multiple
+  entries per day, or VWAP as a trend filter for a separate signal)
+  rather than tightening what's there.
+
+Concentration check stays mandatory for judging whatever comes next.
