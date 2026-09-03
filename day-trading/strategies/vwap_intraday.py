@@ -73,6 +73,13 @@ Carried over from the other day-trading scripts unchanged:
 - Incomplete-day exclusion: if a calendar date's last cash-session bar is
   earlier than 15:55, the day is still in progress and is skipped.
 
+Costs
+-----
+Gross P/L is reported first, then a flat $5 round-trip cost per contract
+(commission + exchange/NFA fees, based on real broker rate cards) is
+subtracted so the summary shows a before/after and states whether the
+strategy is still net profitable once friction is paid.
+
 This is intraday, not daily, data - each day is tested independently, not
 as one continuous equity curve. backtest.py's run_backtest() assumes one
 row per day and can't be reused here, so P/L is tracked manually.
@@ -96,6 +103,20 @@ POINT_VALUE = 2.0  # USD per index point, MNQ=F
 ATR_PERIOD = 20
 STOP_MULT = 1.5
 TARGET_MULT = 2.0
+
+# Realistic trading friction: commission + fees for ONE MNQ contract,
+# charged once per completed round-trip trade (enter + exit). $5 is a
+# conservative all-in estimate based on real broker rate cards: MNQ
+# round-trip commission typically runs $0.58-$3.50 plus ~$1.10 in
+# exchange/NFA fees round-trip. (An earlier version of this model used
+# $25/trade, which overstated real per-contract cost by roughly 5x - see
+# day-trading/notes/findings.md for the correction.)
+ROUND_TRIP_COST_USD = 5.0
+
+# Number of contracts traded per signal. Gross points-per-trade doesn't
+# change with size, but both dollar P/L and dollar cost scale with it
+# (cost is charged per contract, not per trade) - see below.
+CONTRACTS = 1
 
 # Concentration check: how many of the biggest winners to measure against
 # gross profit.
@@ -270,3 +291,27 @@ if trades:
         print(f"Concentration: top {n} winner(s) = {top_n_share:.0%} of "
               f"gross profit ({gross_profit:.2f} points across "
               f"{len(winners)} winning trade(s))")
+
+    # --- Commission + slippage adjustment ---
+    # Everything above is gross (frictionless), one contract's worth in
+    # points. Scale to CONTRACTS in dollars, then subtract cost, which is
+    # also charged per contract (2 contracts = 2x the round-trip cost).
+    cost_per_trade_usd = ROUND_TRIP_COST_USD * CONTRACTS
+    total_cost_usd = len(trades) * cost_per_trade_usd
+
+    gross_points = total_pnl
+    gross_usd = total_pnl * POINT_VALUE * CONTRACTS
+    net_usd = gross_usd - total_cost_usd
+
+    print("\n--- Cost adjustment (commission + slippage) ---")
+    print(f"Contracts per trade: {CONTRACTS}")
+    print(f"Assumed round-trip cost: ${ROUND_TRIP_COST_USD:,.2f} per contract "
+          f"= ${cost_per_trade_usd:,.2f} per trade")
+    print(f"Total cost: {len(trades)} trades x ${cost_per_trade_usd:,.2f} "
+          f"= ${total_cost_usd:,.2f}")
+    print()
+    print(f"{'':<22}{'Before costs':>16}{'After costs':>16}")
+    print(f"{'Total P/L (points)':<22}{gross_points:>+16.2f}{'-':>16}")
+    print(f"{'Total P/L (USD)':<22}{gross_usd:>+16,.2f}{net_usd:>+16,.2f}")
+    print(f"{'Net profitable?':<22}{'YES' if gross_usd > 0 else 'NO':>16}"
+          f"{'YES' if net_usd > 0 else 'NO':>16}")

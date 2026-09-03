@@ -396,4 +396,58 @@ yields, and squeezing it further just breaks what was working.
   entries per day, or VWAP as a trend filter for a separate signal)
   rather than tightening what's there.
 
+---
+
+## Correction: the $25/trade cost assumption was wrong
+
+Every VWAP result above (`vwap_intraday.py`, `vwap_selective.py`,
+`vwap_tight_rr.py`) modeled commission + slippage at a flat **$25
+round-trip per MNQ contract**. That number was an unresearched guess, not
+a benchmark. Checked against real broker rate cards, MNQ round-trip
+commission runs **$0.58-$3.50** plus **~$1.10** in exchange/NFA fees
+round-trip - call it **$5/trade all-in, conservatively**. $25 overstated
+real cost by roughly **5x**.
+
+`ROUND_TRIP_COST_USD` in `vwap_intraday.py` is now `5.0` (with a
+`CONTRACTS` multiplier added alongside it for future position-size
+testing - cost scales with contracts exactly like gross P/L does, so
+size alone can't fix a negative edge, it only rescales it). Corrected
+verdicts, using each strategy's already-recorded gross P/L and trade
+count above:
+
+| Strategy | Trades | Gross P/L | Net @ $25/trade (old) | Net @ $5/trade (corrected) | Verdict change |
+|---|---|---|---|---|---|
+| `vwap_intraday.py` (baseline) | 49 | +$1,144.71 | -$80.28 (NOT profitable) | **+$899.71 (PROFITABLE)** | **FLIPS to profitable** |
+| `vwap_selective.py` | 19 | -$537.81 | -$1,012.81 (NOT profitable) | -$632.81 (NOT profitable) | No flip - gross is already negative, cost size can't fix that |
+| `vwap_tight_rr.py` | 49 | +$106.70 | -$1,118.30 (NOT profitable) | -$138.30 (NOT profitable) | No flip - gross ($106.70) is smaller than even the corrected 49-trade cost ($245) |
+
+**`vwap_intraday.py` is the only strategy in the whole track whose
+verdict actually changes.** It was wrongly written off as a $80 loser
+above; it's a **~$900 winner** on the same 49-trade sample once cost is
+modeled correctly. This overturns the "near-viable, but not quite" framing
+used throughout this file for the baseline VWAP result - re-read the
+sections above with that in mind. `vwap_selective.py` and
+`vwap_tight_rr.py` still lose money after the correction (their losses
+shrink a lot, from -$1,012.81 to -$632.81 and from -$1,118.30 to
+-$138.30, but neither gross P/L was large enough to clear even a $5/trade
+cost), so the earlier conclusion that both modifications made the
+baseline *worse* still holds.
+
+**`orb.py`, `orb_sweep_futures.py`, and `orb_sweep_confirmed.py` never had
+a cost model at all** - not $25, not any figure. Their P/L totals in this
+file (net loss for `orb.py`'s three configs, +$743.75 for
+`orb_sweep_futures.py`, -$1,302.50 for `orb_sweep_confirmed.py`) are pure
+gross point totals with zero commission/slippage subtracted. There is
+nothing to correct from $25 to $5 in those three files because $25 was
+never applied there in the first place - applying a cost model to them
+would be new work, not a correction, and is out of scope here.
+
+`vwap_selective.py` and `vwap_tight_rr.py` still hardcode
+`ROUND_TRIP_COST_USD = 25.0` in code (only `vwap_intraday.py`'s constant
+was updated) - the numbers above were recalculated by hand from each
+script's already-recorded gross P/L and trade count, not by re-running
+them, since a fresh run pulls yfinance's rolling 60-day window and would
+no longer match the committed 49-trade sample this file's numbers are
+drawn from.
+
 Concentration check stays mandatory for judging whatever comes next.
