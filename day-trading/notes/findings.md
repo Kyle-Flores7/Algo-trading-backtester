@@ -451,3 +451,72 @@ no longer match the committed 49-trade sample this file's numbers are
 drawn from.
 
 Concentration check stays mandatory for judging whatever comes next.
+
+---
+
+## Milestone: current best finding in the day-trading track
+
+**Plain VWAP pullback (`vwap_intraday.py`) is the one genuine result this
+track has produced so far.** Restating it post-correction, with the
+realistic $5/trade cost:
+
+| Metric | MNQ=F (`vwap_intraday.py`) | QQQ (`vwap_qqq.py`) |
+|---|---|---|
+| Sample | 49 trades / 49 days | 59 trades / 60 days |
+| Gross P/L | +$1,144.71 | +$1,496.51 |
+| Net @ $25/trade (old, wrong) | -$80.28 | +$21.51 |
+| Net @ $5/trade (corrected) | **+$899.71** | **+$1,201.51** |
+| Edge retained after realistic costs | ~79% of gross | ~80% of gross |
+| Concentration (top 3 winners) | 21% | 23% |
+| Win rate | 51% (25/49) | 46% (27/59) |
+
+(QQQ's `ROUND_TRIP_COST_USD` is still `25.0` in code - the $1,201.51
+corrected figure above is recalculated by hand from its recorded
++$1,496.51 gross / 59 trades, the same way the VWAP-family table above
+was corrected.)
+
+Why this reads as real signal and not noise or a fragile lucky result:
+
+- **Net profitable on both instruments once cost is modeled correctly**,
+  not just one - at $25/trade MNQ looked like a $80 loser and QQQ was a
+  rounding-error win; at the corrected $5/trade both are comfortably
+  positive, in the same ballpark (~79-80% of gross retained).
+- **No outlier dependence.** Top-3 concentration is 21% (MNQ) and 23%
+  (QQQ) of gross profit - healthy and evenly distributed, the opposite of
+  variation 4's one-trade mirage (`orb_sweep_futures.py`, +$743.75 gross
+  entirely dependent on a single day) that the concentration check caught
+  earlier in this file.
+- **Survived a cross-underlying check**, the same test that killed
+  `orb_sweep.py` (positive on QQQ, negative on SPY - ticker-specific
+  noise). VWAP pullback held up moving from MNQ=F futures to QQQ shares.
+- **Resisted two independent attempts to improve it** (`vwap_selective.py`'s
+  volume filter, `vwap_tight_rr.py`'s tighter risk/reward) - both made it
+  worse, which is consistent with a real, already-fairly-tuned signal
+  rather than one that just hasn't been optimized yet.
+
+### Still needed before this counts as a validated strategy
+
+This is a promising result, not a confirmed edge. It has been tested on
+**one 60-day window and cross-checked on one alternate instrument** -
+that is not enough to trust yet. The swing-trading library
+(`docs/findings.md`) didn't accept RSI 25/75 as real until it held up
+across **multiple years and multiple tickers**; this result should be
+held to the same bar before it's treated as more than "promising."
+
+Concretely, before relying on this:
+
+- **A second, non-overlapping time window on MNQ=F.** yfinance's 5-minute
+  cap is ~60 days, so this means either waiting for a new 60-day window to
+  roll forward and re-running, or splicing multiple historical 60-day
+  pulls end-to-end. The open question from the "Conclusion for the
+  day-trading track" section above - whether this is real residual signal
+  or where the noise landed on this one sample - is still open.
+- **Confirmation the edge holds across different market conditions**, not
+  just different tickers in the same conditions - the current MNQ and QQQ
+  samples cover the same 60ish calendar days, so they're two views of the
+  same market regime, not two independent tests.
+- Only after the edge survives a second window and different conditions
+  should position sizing, execution quality, or live-readiness be the
+  next question - not before.
+
+Concentration check stays mandatory for judging whatever comes next.
