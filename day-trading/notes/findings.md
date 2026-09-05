@@ -647,3 +647,100 @@ failed that test on both instruments.
   windows' aggregate totals.
 
 Concentration check stays mandatory for judging whatever comes next.
+
+---
+
+## Four-factor confluence: setup_v1.py (HTF bias + session + VWAP + sweep) - loses on both instruments
+
+`setup_v1.py`. The most ambitious combination attempted in this track:
+FOUR conditions, each individually proven or reasoned about elsewhere in
+this project, required together on 1-hour bars over each ticker's full
+available history (MNQ=F 2024-04-14 -> today, QQQ 2023-10-09 -> today):
+
+1. **HTF bias** - daily close vs 50-day SMA, prior completed bar only (same
+   mechanism as `multifactor_v1.py`, but that test wrapped it around RSI at
+   5-minute resolution; untested alone at this bar count/time scale).
+2. **Session filter** - 9:30-11:00 AM ET entries only (foundational since
+   `orb.py`).
+3. **VWAP** - per-day structural anchor, identical to `vwap_intraday.py` /
+   `vwap_intraday_1h.py` (the one validated real signal in the track).
+4. **Liquidity sweep** - a sweep-and-reclaim of a rolling 20-bar swing
+   high/low (market structure, not the opening range this time), taken
+   only if the reclaim moves toward/through VWAP. Previously tested
+   (`orb_sweep.py` family) fading an opening-range level, never combined
+   with a VWAP anchor.
+
+Same ATR 1.5x/2.0x stop/target, $5/trade cost, one trade/day, incomplete-day
+exclusion, and modal-bar-count session logic as `vwap_intraday_1h.py`.
+
+### Results
+
+| Metric | MNQ=F (1h) | QQQ (1h) |
+|---|---|---|
+| Data window | 2024-04-14 -> 2026-09-04 (872 days) | 2023-10-09 -> 2026-09-04 (1,061 days) |
+| Days tested | 595 | 723 |
+| ...bias-aligned sweep+reclaim occurred at all | 146 | 109 |
+| ...and VWAP-aligned (actually traded) | **146** | **109** |
+| Total P/L (gross) | -364.58 pts (-$729.16) | -75.71 pts (-$6,208.19) |
+| Win rate | 43% (63/146) | 39% (43/109) |
+| Average win / loss | +114.52 / -91.31 pts | +2.44 / -2.78 pts |
+| Concentration (top 3) | 14% of gross profit | 24% of gross profit |
+| Cost @ $5/trade | $730.00 (146 trades) | $545.00 (109 trades) |
+| Total P/L (net) | **-$1,459.16 (NOT profitable)** | **-$6,753.19 (NOT profitable)** |
+
+### What this means
+
+**The VWAP-alignment gate never actually filtered anything on either
+ticker** - the "bias-aligned sweep+reclaim occurred at all" count and the
+"actually traded" count are identical (146/146 MNQ, 109/109 QQQ). Every
+structural sweep+reclaim in this sample already had VWAP sitting on the
+far side of the swept level, so condition #4's VWAP check added zero
+selectivity in practice - the trigger reduces, on this data, to "sweep +
+reclaim of a 20-bar swing level," full stop. This makes sense in
+retrospect: the swing level looks back ~3 trading days while VWAP is
+purely today's own average, so VWAP sitting beyond a multi-day extreme
+being swept is the common case, not the exception. **The four-factor
+design did not actually test four independent conditions - condition #4
+collapsed into condition #3 doing no extra work**, which is itself a
+useful methodological finding for future confluence attempts: stacking
+conditions only adds power if each one can independently veto a trade, and
+this is a case where it looked like it would and didn't.
+
+**Both instruments lose money, and neither loss is a concentration
+artifact.** Top-3 concentration is 14% (MNQ) and 24% (QQQ) - both in the
+healthy range this file has used throughout to distinguish real (if
+losing) results from outlier mirages like `orb_sweep_futures.py`'s
+one-trade +$743.75. This is an honest, broadly-distributed loss on both
+tickers, not a fragile one hiding behind a lucky trade.
+
+**Adding the HTF bias and structural-sweep gate on top of VWAP made things
+worse than plain VWAP, not better** - the same direction of finding as
+`vwap_selective.py`'s volume filter and `vwap_tight_rr.py`'s tighter
+risk/reward, both of which also degraded the `vwap_intraday.py` baseline.
+Every attempt so far to add a condition on top of the VWAP pullback signal
+- volume confirmation, tighter risk/reward, and now HTF bias + swing-sweep
+- has made the result worse, never better. That is a consistent enough
+pattern across four independent modifications to treat "VWAP pullback
+plain and alone is close to a local ceiling for this signal family" as a
+stronger conclusion than any one of those attempts alone would justify.
+
+Also worth noting: this test still inherits the unresolved question from
+the 1-hour VWAP section above - the MNQ 6-bars/day alignment gap (missing
+the true 9:30-10:00 open) applies here identically, since `setup_v1.py`
+reuses `vwap_intraday_1h.py`'s exact session-slicing logic.
+
+### Next direction
+
+- Since the VWAP-alignment gate turned out to be non-binding here, a
+  genuinely independent fourth condition (one that can actually veto a
+  sweep+reclaim VWAP hasn't already blessed) would be needed before
+  concluding four-factor confluence itself doesn't work, as opposed to
+  concluding this particular fourth factor didn't add anything.
+- The consistent "every add-on makes plain VWAP worse" pattern across four
+  attempts (`vwap_selective.py`, `vwap_tight_rr.py`, and now `setup_v1.py`
+  on both tickers) is now strong enough evidence that future work should
+  default to assuming a new filter will hurt rather than help this signal,
+  and treat any filter that doesn't degrade it as the surprising result
+  worth double-checking.
+
+Concentration check stays mandatory for judging whatever comes next.
