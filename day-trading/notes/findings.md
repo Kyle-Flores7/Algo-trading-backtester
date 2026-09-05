@@ -520,3 +520,130 @@ Concretely, before relying on this:
   next question - not before.
 
 Concentration check stays mandatory for judging whatever comes next.
+
+---
+
+## The second window: 1-hour bars unlock 2-3 years of history - and the edge does not survive it
+
+The previous section's open question was whether the VWAP-pullback result
+was real or "where the noise landed on this one [60-day] sample." Getting a
+second, non-overlapping window requires longer history than 5-minute bars
+allow, so the actual yfinance caps were checked empirically (period
+requests increased until Yahoo's API rejected them) instead of assumed:
+
+| Interval | MNQ=F max window | QQQ max window |
+|---|---|---|
+| 5-minute | ~60 calendar days | ~60 calendar days |
+| 15-minute | ~60 calendar days - **same cap, no gain over 5-minute** | ~60 calendar days - same cap |
+| 1-hour | 872 calendar days observed (2024-04-14 -> today) | 1,061 calendar days observed (2023-10-09 -> today) |
+
+15-minute bars turned out to be a dead end - Yahoo enforces the identical
+~60-day limit on 15-minute as on 5-minute, so switching to it would have
+just been a coarser cut of the same window already tested. 1-hour is the
+only interval that actually unlocks new history: Yahoo's documented hard
+limit for 1-hour is 730 days ("must be within the last 730 days" per its
+own API error at longer requests), though `period="730d"` empirically
+returned more than that - back to each ticker's earliest available 1-hour
+history (MNQ=F's data starts 2024-04-14; QQQ's starts 2023-10-09).
+
+### Overlap check against the original 5-minute sample
+
+`vwap_intraday.py`'s original 60-day / 49-trade run was committed
+2026-08-30, so that sample covers approximately 2026-07-01 to 2026-08-30.
+The new 1-hour window's most recent ~60 days fall inside that same
+calendar span - about **7% of the MNQ window and 6% of the QQQ window**.
+The other **~93-94%** (back to April 2024 / October 2023) is calendar time
+the original test never saw at all. This is a genuinely different, much
+longer sample, not another look at the same two months.
+
+### `vwap_intraday_1h.py` - same signal, adapted for 1-hour bars
+
+Adapting `vwap_intraday.py` to 1-hour bars required almost no change to
+the actual trading logic:
+
+- **ATR/stop-target math needed no rescaling.** ATR is computed directly
+  from the series it runs on, so a 1-hour bar's ATR is automatically
+  proportionally larger than a 5-minute bar's (observed: MNQ ATR ~60-110
+  points/bar hourly vs roughly 15-20 points/bar at 5-minute; QQQ ATR
+  ~2.2-3.3 points/bar hourly vs a few tenths of a point at 5-minute). The
+  1.5x stop / 2.0x target multipliers scale up right along with it with
+  zero code changes - `ATR_PERIOD=20`, `STOP_MULT=1.5`, `TARGET_MULT=2.0`
+  are all unchanged from the original.
+- **What DID need adapting was bar-count-dependent session logic**, which
+  is genuinely resolution-specific:
+  - The original's "finished session's last bar is 15:55" check is a
+    5-minute-only fact. Replaced with a dynamic rule: compute the modal
+    number of session bars across the whole pull, and treat any day with
+    fewer bars than that mode as an incomplete/in-progress session or
+    holiday half day.
+  - MNQ=F's 1-hour bars are aligned to the top of the hour (continuous
+    near-24h futures trading), not to the 9:30 AM open, so its last
+    in-session bar lands exactly at 16:00 and covers 16:00-17:00 -
+    after-close settlement trading. That bar is now dropped for both
+    tickers (a no-op for QQQ, which never has a bar starting at 16:00).
+
+**Data-alignment caveat worth flagging plainly:** that same top-of-hour
+alignment means MNQ=F's 1-hour session bars only run 10:00-15:00 ET (6
+bars/day) - the 09:00 bar, which would be the only one covering the actual
+9:30 AM open, gets excluded because its timestamp (09:00) falls before the
+`between_time("09:30", ...)` cutoff. So MNQ's hourly VWAP here effectively
+starts 30 minutes into the session, not at the true open. QQQ's 1-hour
+bars are aligned to 9:30 and capture the true full session (7 bars,
+9:30-16:00, with a runt final 30-minute bar) with no such gap. This is a
+yfinance fixed-grid artifact for continuous futures data, not a strategy
+design choice, and it means the two tickers' results below aren't tested
+on identically-defined sessions.
+
+### Results
+
+| Metric | MNQ=F (1h) | QQQ (1h) |
+|---|---|---|
+| Data window | 2024-04-14 -> 2026-09-04 (872 days) | 2023-10-09 -> 2026-09-04 (1,061 days) |
+| Days tested / trades | 595 / 517 | 723 / 609 |
+| Total P/L (gross) | **-3,634.74 pts (-$7,269.48)** | **+21.77 pts (+$1,785.09)** |
+| Win rate | 44% (225/517) | 49% (298/609) |
+| Average win / loss | +88.92 / -85.66 pts | +2.19 / -2.13 pts |
+| Concentration (top 3) | 5% of gross profit | 8% of gross profit |
+| Cost @ $5/trade | $2,585.00 (517 trades) | $3,045.00 (609 trades) |
+| Total P/L (net) | **-$9,854.48 (NOT profitable)** | **-$1,259.91 (NOT profitable)** |
+
+### What this means
+
+**The edge does not survive the second, mostly-non-overlapping window.**
+MNQ=F is now a clear, evenly-distributed loser - not a fragile one hiding
+behind an outlier (5% top-3 concentration is as healthy as the original
+sample's 21%, it's just healthy *and losing*). QQQ is close to gross
+break-even (+$1,785 over 609 trades, about $2.93/trade before cost) but
+the $5/trade cost consumes that thin edge because trade frequency stayed
+high (~0.84 trades/day over nearly 3 years) - the same dynamic that sank
+`vwap_tight_rr.py` and `vwap_selective.py`, a real edge has to clear cost
+per trade, and thin-but-frequent isn't enough.
+
+This reframes the "Milestone" section above. The 60-day 5-minute result
+(+$899.71 MNQ, +$1,201.51 QQQ net, both healthy on concentration) most
+likely reflects **that specific ~2-month market regime** rather than a
+timeframe-independent structural edge - exactly the risk the "still needed
+before this counts as a validated strategy" checklist above called out
+before this test ran. It is not proof VWAP pullback is *worthless* - bar
+resolution, the MNQ session-alignment gap noted above, and regime
+differences are all confounded in this one comparison - but the honest
+read is that the original result has not been confirmed by the harder
+test it was always going to need, and on the evidence gathered so far, it
+failed that test on both instruments.
+
+### Next direction
+
+- The MNQ 6-bars/day alignment gap (missing the true 9:30-10:00 open) is a
+  real confound - worth checking whether a MNQ run that somehow captures
+  the true open changes the picture, before concluding the hourly result
+  is representative of the strategy rather than of the data gap.
+- QQQ's near-breakeven gross result over ~3 years, undone only by trade
+  frequency vs. a flat per-trade cost, is a different failure mode than
+  MNQ's outright loss - worth keeping distinct rather than averaging the
+  two tickers into one verdict.
+- Splitting the 1-hour sample into sub-windows (e.g., by year) would show
+  whether the original 60-day result was drawn from a locally-favorable
+  stretch within this longer history, rather than only comparing the two
+  windows' aggregate totals.
+
+Concentration check stays mandatory for judging whatever comes next.
