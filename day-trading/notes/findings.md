@@ -650,6 +650,95 @@ Concentration check stays mandatory for judging whatever comes next.
 
 ---
 
+## Liquidity sweep, tested alone for the first time: sweep_only.py - ticker-dependent, thin either way
+
+`sweep_only.py`. Every earlier sweep test bundled the pattern with something
+else: `orb_sweep.py` and its variants fade a sweep of the OPENING RANGE
+specifically, and `setup_v1.py`'s sweep of a rolling 20-bar swing high/low
+was gated behind an HTF bias, a 9:30-11:00 session filter, and VWAP
+alignment all at once. This is the first time the raw claim - "a sweep of
+a recent swing level followed by a close back inside it is itself an edge"
+- has been tested with nothing else layered on top: no session filter (the
+full 9:30 AM-4:00 PM ET session is scanned, not just the open), no trend/
+bias filter (either direction considered on every bar), no VWAP, no RSI.
+Because there's no session restriction this time, multiple trades/day are
+allowed - one trade per signal, not one per day - with a reclaim required
+within 5 bars (25 minutes) of the sweep or the setup expires unfilled.
+Same ATR 1.5x/2.0x stop/target and $5/trade cost as the rest of the track,
+5-minute bars, 60-day yfinance window.
+
+### Results
+
+| Metric | MNQ=F (5m) | QQQ (5m) |
+|---|---|---|
+| Data window | 2026-06-29 -> 2026-09-04 | 2026-06-11 -> 2026-09-04 |
+| Days tested | 49 | 60 |
+| Trades taken | 262 | 274 |
+| Average trades/day | 5.35 | 4.57 |
+| Total P/L (gross) | -791.93 pts (-$1,583.85) | +19.06 pts (+$1,562.56) |
+| Win rate | 40% (105/262) | 45% (122/274) |
+| Average win / loss | +86.14 / -65.14 pts | +2.24 / -1.77 pts |
+| Concentration (top 3) | 5% of gross profit | 6% of gross profit |
+| Cost @ $5/trade | $1,310.00 (262 trades) | $1,370.00 (274 trades) |
+| Total P/L (net) | **-$2,893.85 (NOT profitable)** | **+$192.56 (profitable, barely)** |
+
+### What this means
+
+**The raw sweep pattern is not a reliable edge by itself, and the two
+tickers disagree about which direction it's wrong in.** MNQ loses money
+decisively (-$2,893.85 over 262 trades); QQQ is nominally net profitable
+but by $192.56 on $1,370 of trading costs - closer to noise than to a
+result, the kind of margin that would flip with one different week of
+data. Neither number resembles the original VWAP pullback finding
+(`vwap_intraday.py`, the track's one real result to date): that one was
+profitable on both its first ticker AND (barely) survived a switch to
+QQQ. This one is inconsistent between tickers, which is a materially
+weaker signal than "positive but small on both."
+
+**Both results are honestly distributed, not concentration artifacts** -
+5% (MNQ) and 6% (QQQ) top-3 concentration are both in the healthy range
+this file uses to flag real results vs. outlier mirages like
+`orb_sweep_futures.py`'s one-trade +$743.75. MNQ's loss is a broad, steady
+bleed across 262 trades, not a couple of bad ones; QQQ's marginal gain is
+similarly spread, not propped up by a lucky trade.
+
+**Removing every filter did not reveal a hidden edge - it revealed there
+probably isn't one to hide.** `setup_v1.py` already showed that stacking
+HTF bias + VWAP alignment on top of this same sweep concept made things
+worse on both tickers; this result shows that stripping everything away
+down to the bare sweep+reclaim doesn't make things better either. Combined
+with `vwap_selective.py`, `vwap_tight_rr.py`, and `setup_v1.py` all making
+plain VWAP pullback worse, the emerging picture across this whole track is
+that the sweep concept specifically - fading a swing-level breach, at any
+level of added structure or in isolation - has not yet produced one
+provably-real result at any resolution tried, while VWAP pullback alone
+remains the sole survivor.
+
+**Trading five-plus times a day makes cost drag matter far more than
+anywhere else in this track.** $1,310-$1,370 in round-trip costs against
+gross P/L of -$791.93/+$19.06 points is a much bigger share of the
+outcome than any one-trade-per-day script has faced - a useful reminder
+that signal frequency and cost sensitivity move together, and any future
+high-frequency-per-day setup needs to clear a materially higher gross bar
+before costs to have a chance of surviving them.
+
+### Next direction
+
+- MNQ/QQQ disagreement on sign is now the headline uncertainty for this
+  signal family - a third instrument or a longer/rolled sample would help
+  tell "sweep-alone is a coin flip" apart from "sweep-alone quietly favors
+  equities over futures at this size," which this two-ticker, 60-day
+  sample can't distinguish.
+- The 5-bar reclaim-expiry window was a judgment call (see the script's
+  docstring), not something derived from the data - worth revisiting if
+  this concept gets picked up again, since a tighter or looser expiry
+  could plausibly move either ticker's result meaningfully at this trade
+  frequency.
+
+Concentration check stays mandatory for judging whatever comes next.
+
+---
+
 ## Four-factor confluence: setup_v1.py (HTF bias + session + VWAP + sweep) - loses on both instruments
 
 `setup_v1.py`. The most ambitious combination attempted in this track:
