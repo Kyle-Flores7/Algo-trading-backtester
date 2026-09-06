@@ -739,6 +739,92 @@ Concentration check stays mandatory for judging whatever comes next.
 
 ---
 
+## Sweep + a VWAP filter that actually filters: sweep_vwap.py - real this time, still not a win
+
+`sweep_vwap.py`. `setup_v1.py`'s VWAP-alignment gate never actually bound
+(146/146 MNQ and 109/109 QQQ raw sweep+reclaims passed it), because it
+compared the SWEPT LEVEL to VWAP - a multi-day swing extreme sitting
+beyond today's own average is close to a geometric certainty, not a real
+condition. This script fixes that by testing VWAP the way every other
+VWAP script in this track does: is the RECLAIM BAR'S CLOSE on the correct
+side of VWAP at that moment. Everything else - the 20-bar swing
+sweep+reclaim trigger, the 5-bar reclaim expiry, the full-session scan, ATR
+1.5x/2.0x risk, $5/trade cost, multiple trades/day - is identical to
+`sweep_only.py`, so any change in the result is attributable to the VWAP
+filter alone.
+
+### Results
+
+| Metric | MNQ=F (5m) | QQQ (5m) |
+|---|---|---|
+| Raw sweep+reclaim signals | 567 | 591 |
+| ...passed VWAP confirmation | **69 (12%)** | **82 (14%)** |
+| Trades taken | 69 | 82 |
+| Total P/L (gross) | -158.73 pts (-$317.46) | -2.82 pts (-$231.64) |
+| Win rate | 39% (27/69) | 44% (36/82) |
+| Average win / loss | +59.77 / -45.45 pts | +1.53 / -1.34 pts |
+| Concentration (top 3) | 24% of gross profit | 19% of gross profit |
+| Cost @ $5/trade | $345.00 (69 trades) | $410.00 (82 trades) |
+| Total P/L (net) | **-$662.46 (NOT profitable)** | **-$641.64 (NOT profitable)** |
+
+**For comparison, `sweep_only.py`'s unfiltered baseline:** MNQ -$2,893.85
+net (262 trades), QQQ +$192.56 net (274 trades).
+
+### What this means
+
+**The filter is real this time - confirmed before looking at any P/L.**
+12%/14% pass rates are the opposite of `setup_v1.py`'s ~100%: roughly
+seven out of eight raw sweep+reclaims now get rejected because the
+reclaim bar's close is on the wrong side of VWAP at that instant. This is
+the comparison `setup_v1.py` should have been, and it settles that its
+null result was a broken test, not evidence VWAP confirmation doesn't
+matter.
+
+**Having a real filter this time doesn't produce a winner.** MNQ's net
+loss shrinks by about 77% (-$2,893.85 -> -$662.46) - fewer trades means
+less cost drag and, apparently, somewhat better selection - but it is
+still a loss. QQQ moves the other way: its barely-positive unfiltered
+result (+$192.56) flips to a loss (-$641.64) once VWAP confirmation cuts
+its trade count from 274 to 82. A filter that helps one ticker and hurts
+the other, on top of `sweep_only.py`'s own MNQ/QQQ sign disagreement, is
+now two consecutive results where this signal family behaves
+inconsistently across instruments rather than converging on a clear
+answer either way.
+
+**Concentration rose on both tickers (5%->24% MNQ, 6%->19% QQQ) but
+stays in a plausible range** for a much smaller trade count (69 and 82 vs
+262 and 274) - a handful of the surviving winners naturally carry more
+weight of the total, and neither is close to the single-trade-driven
+mirage seen elsewhere in this track (`orb_sweep_futures.py`'s one trade at
+100%). Worth watching if this signal is refined further, since a smaller
+sample is inherently more sensitive to a few large trades.
+
+**Taken together with `setup_v1.py` and `sweep_only.py`, this is now the
+third sweep-family test to fail to produce a clean win**, and the second
+to show the two tickers disagreeing about which direction the signal is
+even wrong in. The sweep concept has yet to survive a fair trial in any
+form tried so far - alone, gated behind a real VWAP filter, or (in
+`setup_v1.py`) gated behind a filter that turned out not to bind. VWAP
+pullback alone (`vwap_intraday.py`) remains the only member of this whole
+day-trading track with a real, if fragile, positive result.
+
+### Next direction
+
+- With both the raw sweep and the VWAP-confirmed sweep disagreeing on
+  sign by ticker, further tuning of THIS specific structural sweep
+  (20-bar lookback, 5-bar expiry) has diminishing odds of paying off
+  without new evidence pointing at why MNQ and QQQ behave oppositely
+  under it - that disagreement, not the point/dollar totals, is the
+  open question this family leaves behind.
+- If the sweep concept is revisited again, testing whether the pass rate
+  and P/L are sensitive to the 5-bar expiry or 20-bar lookback (rather
+  than assuming the current numbers are the ceiling for this trigger)
+  would be more informative than adding a fifth condition on top.
+
+Concentration check stays mandatory for judging whatever comes next.
+
+---
+
 ## Four-factor confluence: setup_v1.py (HTF bias + session + VWAP + sweep) - loses on both instruments
 
 `setup_v1.py`. The most ambitious combination attempted in this track:
