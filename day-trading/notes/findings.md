@@ -739,6 +739,97 @@ Concentration check stays mandatory for judging whatever comes next.
 
 ---
 
+## Hour-of-day seasonality check: seasonality_check.py - no bucket clears the bar, on either ticker
+
+`seasonality_check.py`. Every strategy in this track so far picked a
+trigger concept first and only then asked whether it made money. This is
+the opposite: a pure statistical check, no signal, no stop/target, no
+cost model, just the question "does any specific hour of the trading day
+show a real, repeatable directional tendency at all" - the kind of thing
+that would need to be true before an hour-of-day strategy is worth
+designing in the first place.
+
+Method: the 9:30 AM-4:00 PM ET cash session split into seven fixed,
+non-overlapping buckets (six full hours + a final 15:30-16:00 half-hour),
+one return per (day, bucket) as last-close/first-open - 1, then a
+one-sample t-test against zero mean per bucket across all tested days
+(t-stat vs. a fixed 2.0 critical value, an approximation used because this
+project has no scipy dependency - see the script's docstring). MNQ=F and
+QQQ, 5-minute bars, 60-day yfinance window.
+
+### Results
+
+**MNQ=F (49 days tested):**
+
+| Hour | Avg return (bps) | % positive | % negative | t-stat | Significant? |
+|---|---|---|---|---|---|
+| 09:30-10:30 | -3.36 | 51% | 49% | -0.37 | NO |
+| 10:30-11:30 | +3.71 | 57% | 43% | +0.65 | NO |
+| 11:30-12:30 | +3.78 | 55% | 45% | +0.73 | NO |
+| 12:30-13:30 | +1.37 | 51% | 49% | +0.38 | NO |
+| 13:30-14:30 | -4.42 | 43% | 57% | -1.48 | NO |
+| 14:30-15:30 | +0.88 | 61% | 39% | +0.28 | NO |
+| 15:30-16:00 | -4.70 | 43% | 57% | -1.25 | NO |
+
+**QQQ (60 days tested):**
+
+| Hour | Avg return (bps) | % positive | % negative | t-stat | Significant? |
+|---|---|---|---|---|---|
+| 09:30-10:30 | -3.03 | 50% | 50% | -0.36 | NO |
+| 10:30-11:30 | +1.29 | 53% | 47% | +0.24 | NO |
+| 11:30-12:30 | +5.00 | 55% | 45% | +1.11 | NO |
+| 12:30-13:30 | +1.02 | 52% | 48% | +0.26 | NO |
+| 13:30-14:30 | -4.75 | 43% | 57% | -1.54 | NO |
+| 14:30-15:30 | -1.38 | 52% | 48% | -0.42 | NO |
+| 15:30-16:00 | -4.54 | 43% | 55% | -1.26 | NO |
+
+### What this means
+
+**No bucket clears the significance bar on either ticker - not one out of
+fourteen tests.** Every t-stat stays well under the 2.0 threshold (largest
+magnitude is -1.54, QQQ's 13:30-14:30). This is a clean, boring, and
+useful negative result: at 5-minute resolution over this 49-60 day window,
+there is no hour of the day where price moves in a consistent direction
+often enough, or by enough, to distinguish it from noise centered on
+zero - on EITHER instrument.
+
+**The closest thing to a pattern - 13:30-14:30 and 15:30-16:00 both
+negative on both tickers - is exactly the kind of near-miss the docstring
+warned about.** With 7 buckets tested per ticker (14 total) at an
+approximate 5% per-test threshold, seeing a couple of the largest-
+magnitude t-stats land in the same two buckets on both tickers is
+suggestive, but with none of them actually crossing 2.0, and no multiple-
+comparisons correction applied, this is not evidence of a real
+early-afternoon/late-day effect - it's exactly what mild, unremarkable
+noise looks like across enough independent looks. Treating it as a lead
+rather than a finding is deliberate: **it would need to independently
+replicate on a fresh data pull, not just get eyeballed off this one
+table, before it's worth acting on.**
+
+**This changes what "no result found" means for every trigger this track
+has already tried.** Nothing here found a session or hour with an inherent
+directional lean - which means every prior null or losing result in this
+track (`orb_sweep.py`, `multifactor_v1.py`, `sweep_only.py`, `setup_v1.py`,
+etc.) cannot be explained away as "the session filter was fighting a
+seasonality effect nobody accounted for." The signal designs that lost
+money lost on their own terms, not because they fought some hidden
+time-of-day headwind.
+
+### Next direction
+
+- Since no bucket cleared significance, there is no seasonality edge on
+  this data to build a strategy around right now - this check's honest
+  conclusion is "don't," not "which hour."
+- If this is revisited, the highest-value next step is checking whether
+  the 13:30-14:30 / 15:30-16:00 negative lean replicates on a rolled-
+  forward data pull (a genuinely new out-of-sample window, not a re-slice
+  of the same 60 days), since that is the only way to tell a real early
+  effect apart from this window's particular noise.
+
+Concentration check stays mandatory for judging whatever comes next.
+
+---
+
 ## Sweep + a VWAP filter that actually filters: sweep_vwap.py - real this time, still not a win
 
 `sweep_vwap.py`. `setup_v1.py`'s VWAP-alignment gate never actually bound
