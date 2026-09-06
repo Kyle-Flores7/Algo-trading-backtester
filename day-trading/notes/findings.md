@@ -739,6 +739,114 @@ Concentration check stays mandatory for judging whatever comes next.
 
 ---
 
+## VWAP pullback, filtered by a recent sweep: vwap_after_sweep.py - helps MNQ, hurts QQQ
+
+`vwap_after_sweep.py`. `sweep_vwap.py` tested sweep-as-trigger with VWAP as
+the filter; this is the reverse combination - `vwap_intraday.py`'s VWAP
+pullback (this track's one real result) stays the unchanged primary
+trigger, and a same-direction liquidity sweep completed in the 10 bars
+before the VWAP entry becomes the added context filter, using the same
+20-bar swing sweep+reclaim mechanism as `sweep_only.py` (5-bar reclaim
+expiry).
+
+**Data-window caveat up front:** yfinance's 60-day window rolls forward
+with the calendar, so re-running `vwap_intraday.py` today does not
+reproduce its originally-recorded +$899.71 (MNQ) / +$1,201.51 (QQQ)
+results from a different pull - both are reported below, plus a
+same-pull unfiltered baseline recomputed fresh alongside this test, so
+the filter's effect is measured apples-to-apples against data from the
+same 60 days as `vwap_after_sweep.py`'s own run. (Separately: running
+`vwap_intraday.py` with a `QQQ` argument reveals it hardcodes
+`POINT_VALUE = 2.0` regardless of ticker - a pre-existing bug, out of
+scope to fix here, worked around the same way findings.md already does
+for `vwap_qqq.py`'s hardcoded `$25` cost constant: by hand-correcting the
+dollar figure from the script's own reported point total.)
+
+### Selectivity funnel (validity check, before any P/L)
+
+| | MNQ=F | QQQ |
+|---|---|---|
+| Raw VWAP pullback signals (vwap_intraday.py's trigger) | 49 | 59 |
+| ...also had a same-direction recent sweep (traded) | **24 (49%)** | **35 (59%)** |
+
+Meaningfully selective on both tickers - not the ~100% pass-through that
+made `setup_v1.py`'s VWAP gate a non-filter, and not so restrictive that
+almost nothing survives either.
+
+### Results
+
+| Metric | MNQ=F (49 raw -> 24 traded) | QQQ (59 raw -> 35 traded) |
+|---|---|---|
+| Total P/L (gross) | +762.06 pts (+$1,524.12) | +2.43 pts (+$199.21) |
+| Win rate | 62% (15/24) | 43% (15/35) |
+| Average win / loss | +86.98 / -60.30 pts | +2.65 / -1.87 pts |
+| Concentration (top 3) | 31% of gross profit | 36% of gross profit |
+| Cost @ $5/trade | $120.00 (24 trades) | $175.00 (35 trades) |
+| Total P/L (net) | **+$1,404.12 (PROFITABLE)** | **+$24.21 (profitable, razor-thin)** |
+
+**Baselines for comparison, same pull as the run above (not the
+historical figures - see caveat):**
+
+| | MNQ=F unfiltered (49 trades) | QQQ unfiltered (59 trades) |
+|---|---|---|
+| Total P/L (gross) | +482.44 pts (+$964.87) | +5.13 pts (+$420.66, hand-corrected to $82/pt) |
+| Total P/L (net) | +$719.87 | +$125.66 |
+
+**Historical baselines as originally recorded** (different 60-day pull):
+MNQ +$899.71 net / 49 trades; QQQ +$1,201.51 net / 59 trades.
+
+### What this means
+
+**On MNQ, the filter is a clear improvement, not just a smaller/noisier
+version of the same trade.** Same-pull unfiltered net was +$719.87 across
+49 trades; filtering to the 24 (49%) that also had a recent same-direction
+sweep nearly DOUBLES net P/L to +$1,404.12, while win rate jumps from 49%
+to 62% and average win/loss per trade is essentially unchanged (so the
+gain is coming from which trades get taken, not from bigger wins). This is
+the first filter tried anywhere in this track - on either combination
+direction - that clearly makes the VWAP pullback's own instrument better,
+not worse or merely thinner.
+
+**On QQQ, the filter goes the other way.** Same-pull unfiltered net was
+already thin (+$125.66 across 59 trades); filtering to 35 (59%) trades
+drops net to +$24.21 - still technically profitable, but by a margin that
+is functionally noise (one different trade either way flips the sign).
+Win rate barely moves (42% -> 43%).
+
+**Concentration rose on both (22%->31% MNQ, 22%->36% QQQ)**, an expected
+side effect of fewer surviving trades concentrating a fixed amount of
+profit among fewer winners, and QQQ's 36% is the highest concentration
+this track has called "not yet a mirage" - worth treating QQQ's positive
+result here as fragile rather than confirmed, given both the thin dollar
+margin and the elevated concentration pointing the same direction.
+
+**This is the mirror image of `sweep_vwap.py`'s finding, not a repeat of
+it.** There, a real (not rubber-stamp) VWAP filter on the sweep trigger
+shrank MNQ's loss but flipped QQQ from a small win to a loss - filtering
+helped the loser and hurt the winner. Here, a real sweep-context filter on
+the VWAP trigger roughly doubles the strong performer (MNQ) and guts the
+already-marginal one (QQQ) - filtering helped the winner and hurt the
+already-weaker one. Combined, the two tests say the same underlying thing
+two different ways: **combining these two concepts does not produce one
+consistent effect across MNQ and QQQ** - which of the two dominates
+depends on which one is the primary trigger and which is the filter, not
+on some fixed "sweep+VWAP confluence is good/bad" rule.
+
+### Next direction
+
+- MNQ's result here is the single best net-$-per-trade improvement any
+  filter has produced in this track and is worth a second look - does it
+  hold if LOOKBACK_BARS or SWEEP_EXPIRY_BARS are varied, or is this
+  particular pairing of window sizes doing the work?
+- QQQ's razor-thin, high-concentration result should not be treated as
+  "also profitable" without a fresh out-of-sample pull confirming it -
+  as-is it reads more like the unfiltered edge getting thinned out by
+  selection than like a real improvement.
+
+Concentration check stays mandatory for judging whatever comes next.
+
+---
+
 ## Hour-of-day seasonality check: seasonality_check.py - no bucket clears the bar, on either ticker
 
 `seasonality_check.py`. Every strategy in this track so far picked a
