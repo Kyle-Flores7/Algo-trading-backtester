@@ -94,10 +94,22 @@ import sys
 import pandas as pd
 import yfinance as yf
 
-# Ticker defaults to MNQ=F (Micro E-mini Nasdaq-100). Dollar P/L assumes
-# MNQ's $2 per index point (0.25-point tick = $0.50/tick -> $2/point).
+# Ticker defaults to MNQ=F (Micro E-mini Nasdaq-100) but can be overridden,
+# e.g. `python vwap_intraday.py QQQ`.
 ticker = sys.argv[1] if len(sys.argv) > 1 else "MNQ=F"
-POINT_VALUE = 2.0  # USD per index point, MNQ=F
+
+# Dollar multiplier per ticker - MNQ is $2 per index point (0.25-point tick
+# = $0.50/tick -> $2/point); QQQ uses the same MNQ-notional-matched 82-share
+# position vwap_qqq.py / sweep_only.py use, so the dollar comparison stays
+# apples-to-apples with the futures baseline. (Previously this was
+# hardcoded to 2.0 regardless of ticker - running with a QQQ argument
+# reported QQQ point totals at $2/point; see day-trading/notes/findings.md.)
+if ticker == "QQQ":
+    POINT_VALUE = 82.0
+elif ticker == "MNQ=F":
+    POINT_VALUE = 2.0
+else:
+    POINT_VALUE = 1.0  # unscaled fallback for any other ticker
 
 # ATR / risk parameters (shared with rsi_intraday.py)
 ATR_PERIOD = 20

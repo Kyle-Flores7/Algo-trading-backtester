@@ -57,7 +57,18 @@ import yfinance as yf
 # lines up with MNQ's $2 per index point at the current ~41x QQQ:NDX ratio.
 ticker = sys.argv[1] if len(sys.argv) > 1 else "QQQ"
 QQQ_SHARES = 82
-POINT_VALUE = float(QQQ_SHARES)  # USD per QQQ point at an MNQ-matched size
+
+# Dollar multiplier per ticker. QQQ uses the MNQ-notional-matched 82-share
+# position described above ($82 per 1.00 QQQ move); MNQ=F is $2 per index
+# point. Previously this was hardcoded to float(QQQ_SHARES) regardless of
+# the ticker argument - the same bug vwap_intraday.py had (see
+# day-trading/notes/findings.md).
+if ticker == "QQQ":
+    POINT_VALUE = float(QQQ_SHARES)
+elif ticker == "MNQ=F":
+    POINT_VALUE = 2.0
+else:
+    POINT_VALUE = 1.0  # unscaled fallback for any other ticker
 
 # ATR / risk parameters - identical to vwap_intraday.py.
 ATR_PERIOD = 20

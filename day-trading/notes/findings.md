@@ -756,11 +756,16 @@ results from a different pull - both are reported below, plus a
 same-pull unfiltered baseline recomputed fresh alongside this test, so
 the filter's effect is measured apples-to-apples against data from the
 same 60 days as `vwap_after_sweep.py`'s own run. (Separately: running
-`vwap_intraday.py` with a `QQQ` argument reveals it hardcodes
-`POINT_VALUE = 2.0` regardless of ticker - a pre-existing bug, out of
-scope to fix here, worked around the same way findings.md already does
-for `vwap_qqq.py`'s hardcoded `$25` cost constant: by hand-correcting the
-dollar figure from the script's own reported point total.)
+`vwap_intraday.py` with a `QQQ` argument used to hardcode
+`POINT_VALUE = 2.0` regardless of ticker - a pre-existing bug the QQQ
+figures in this section were hand-corrected around. **That bug is now
+fixed** - `vwap_intraday.py` and `vwap_qqq.py` both derive `POINT_VALUE`
+from the ticker argument ($82/pt for `QQQ`, $2/pt for `MNQ=F`, 1.0
+otherwise), matching the idiom `sweep_only.py` / `vwap_after_sweep.py`
+already used. `vwap_qqq.py`'s default-`QQQ` output is unchanged by the
+fix (it already resolved to 82.0 for QQQ); only the non-default ticker
+path was wrong. `vwap_qqq.py`'s separate hardcoded `$25` cost constant is
+untouched and still hand-corrected where this file uses its numbers.)
 
 ### Selectivity funnel (validity check, before any P/L)
 
@@ -842,6 +847,87 @@ on some fixed "sweep+VWAP confluence is good/bad" rule.
   "also profitable" without a fresh out-of-sample pull confirming it -
   as-is it reads more like the unfiltered edge getting thinned out by
   selection than like a real improvement.
+
+Concentration check stays mandatory for judging whatever comes next.
+
+---
+
+## Follow-up: is vwap_after_sweep.py's MNQ improvement specific to the 10/5 window? - no, it holds across 5/3 and 15/7
+
+Direct answer to the section above's first "next direction" bullet. The
+sweep-context filter's `LOOKBACK_BARS` / `SWEEP_EXPIRY_BARS` were varied
+one step tighter (**5 / 3**) and one step wider (**15 / 7**) around the
+original **10 / 5**, on both tickers, on a single fresh pull. Because
+yfinance's 60-day window has rolled forward well past the section above's
+pull, everything here is recomputed on this new pull - including a
+same-pull unfiltered baseline (`vwap_intraday.py`, now ticker-aware, so
+its QQQ dollars are correct without hand-correction) - so all six filtered
+runs and the two baselines are apples-to-apples with each other, but *not*
+with the point totals in the section above.
+
+### Same-pull unfiltered baselines (`vwap_intraday.py`, this pull)
+
+| | MNQ=F | QQQ |
+|---|---|---|
+| Trades | 50 | 59 |
+| Net P/L (after $5/trade) | **+$828.92** | **+$539.94** |
+| Win rate | 50% (25/50) | 44% (26/59) |
+
+### MNQ=F - filter helps at every window size
+
+| lookback / expiry | raw -> traded | Net P/L ($5/trade) | vs unfiltered | Win rate | Concentration |
+|---|---|---|---|---|---|
+| 5 / 3 (tighter) | 50 -> 19 (38%) | **+$1,365.40** | +65% | 68% (13/19) | 35% |
+| 10 / 5 (original) | 50 -> 25 (50%) | **+$1,513.17** | +83% | 64% (16/25) | 30% |
+| 15 / 7 (wider) | 50 -> 28 (56%) | **+$1,349.86** | +63% | 61% (17/28) | 28% |
+
+All three beat the same-pull unfiltered MNQ net (+$828.92) by a wide
+margin and lift win rate from 50% to 61-68%. 10/5 is the best of the
+three, but only just - it's the top of a plateau, not a lone spike, with
+both neighbors landing within ~$165 of it. **The MNQ improvement is a
+property of the sweep-context filter across a range of reasonable window
+sizes, not an artifact of the exact 10/5 pair.** The improvement *shape*
+also reproduces on this fresh pull (unfiltered +$828.92 -> 10/5 filtered
++$1,513.17, ~+83%), though not the section-above pull's exact "doubling."
+Concentration rises as the window tightens (28% -> 30% -> 35%) on a
+shrinking winner count (17 -> 16 -> 13); the tight 5/3 setting is where
+that starts to look fragile.
+
+### QQQ - filter hurts at every window size, monotonically worse as it tightens
+
+| lookback / expiry | raw -> traded | Net P/L ($5/trade) | vs unfiltered | Win rate | Concentration |
+|---|---|---|---|---|---|
+| 5 / 3 (tighter) | 59 -> 29 (49%) | **-$807.76** | flips negative | 38% (11/29) | 48% |
+| 10 / 5 (original) | 59 -> 36 (61%) | **+$63.67** | much thinner | 44% (16/36) | 36% |
+| 15 / 7 (wider) | 59 -> 40 (68%) | **+$286.57** | thinner | 45% (18/40) | 32% |
+
+Every variant lands below the unfiltered QQQ net (+$539.94), and the
+filter does *more* damage the more selective it gets: 15/7 -> +$286.57,
+10/5 -> +$63.67, 5/3 -> -$807.76 (firmly negative, concentration 48% on
+just 11 winners). This is the exact opposite of MNQ, where tightening
+toward ~10/5 helps.
+
+### What this means
+
+**The MNQ-helps / QQQ-hurts split from the section above is robust to the
+lookback/expiry window sizes - it is not a product of the specific 10/5
+tuning.** 10/5 is a reasonable near-optimal choice for MNQ across both
+pulls tested, but the qualitative result (filter roughly doubles MNQ,
+degrades QQQ) does not depend on it. This is still two 60-day windows on
+two correlated Nasdaq-100 vehicles, so it is not yet a validated edge -
+but "the effect survives a 2x/0.5x perturbation of both its parameters on
+both tickers" is a stronger position than the single 10/5 result alone.
+
+### Next direction
+
+- The MNQ result has now survived a parameter-sensitivity check but still
+  needs a genuinely non-overlapping time window (a later calendar pull, or
+  spliced historical 60-day pulls) before it counts as more than
+  "promising on two views of one market regime" - same bar the milestone
+  section set for plain `vwap_intraday.py`.
+- QQQ can be set aside for this filter: negative or noise-thin at every
+  window size tested, with concentration climbing into mirage territory
+  (48% at 5/3) as it tightens.
 
 Concentration check stays mandatory for judging whatever comes next.
 
