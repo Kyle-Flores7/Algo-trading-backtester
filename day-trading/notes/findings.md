@@ -15,6 +15,90 @@ not durable statistics. Dollar figures use MNQ's $2/point multiplier.
 
 ---
 
+# LEADING CANDIDATE (not yet validated) - VWAP pullback filtered by a recent liquidity sweep, on MNQ=F
+
+**This section is deliberately separate from everything below it.** The
+rest of this file is the honest scoreboard of strategies that were tested
+and rejected (or that stalled as "thin / fragile / ticker-dependent").
+This one entry is the single exception: the strongest finding the
+day-trading track has produced, promoted here so it does not get lost in
+the narrative of what didn't work. It is **not** a confirmed edge - see
+the caveats and the pending validation step below.
+
+## What it is
+
+`vwap_after_sweep.py`, on **MNQ=F specifically**. `vwap_intraday.py`'s
+plain VWAP pullback (per-day VWAP reset at 9:30, first bar closing off
+VWAP sets the day's LONG/SHORT bias, entry on the first later bar that
+touches VWAP and closes back on the bias side, 1.5x ATR stop / 2.0x ATR
+target, one trade per day, $5/trade round-trip cost) stays the unchanged
+primary trigger. The added filter: only take the pullback if a
+same-direction liquidity sweep of a 20-bar swing high/low completed
+(swept and reclaimed) somewhere in the 10 bars immediately before the
+entry bar.
+
+## Why it's the leading candidate
+
+- **It improves on plain VWAP, not just thins it.** On the sensitivity
+  pull, unfiltered MNQ net was +$828.92 (50 trades); the filter lifts
+  that to +$1,513.17 at the original 10-bar lookback / 5-bar expiry -
+  win rate 50% -> 64%, and the gain comes from *which* trades are taken,
+  not bigger wins (average win/loss per trade barely moves).
+- **It survived a parameter sensitivity check - the first filter in the
+  entire investigation to do so without collapsing or reversing sign.**
+  Varying lookback / expiry one step tighter and one step wider around
+  10/5, all on the same pull vs. the same unfiltered baseline:
+
+  | lookback / expiry | Net P/L vs unfiltered | Win rate | Concentration (top 3) |
+  |---|---|---|---|
+  | 5 / 3 (tighter) | **+65%** | 68% (13/19) | 35% |
+  | 10 / 5 (original) | **+83%** | 64% (16/25) | 30% |
+  | 15 / 7 (wider) | **+63%** | 61% (17/28) | 28% |
+
+  Every window beats unfiltered by 60%+ and lifts win rate to 61-68%.
+  10/5 is the top of a plateau, not a lone spike. Concentration stays in
+  the plausible, broadly-distributed range this file has used throughout
+  to tell real results apart from one-trade mirages (e.g.
+  `orb_sweep_futures.py`'s 100% single-trade +$743.75) - it is not
+  outlier-driven.
+- Every other add-on tried on the VWAP pullback (`vwap_selective.py`'s
+  volume filter, `vwap_tight_rr.py`'s tighter R:R, `setup_v1.py`'s
+  HTF-bias + swing-sweep gate) made it *worse*. This is the only one
+  that made it better and then held up under perturbation.
+
+## Caveats - state these every time this result is cited
+
+1. **Not confirmed on QQQ. This is an MNQ-specific finding, not a
+   general Nasdaq-100 finding.** The identical filter *hurts* QQQ at all
+   three parameter windows - and monotonically worse as it tightens
+   (15/7: +$286.57, 10/5: +$63.67, 5/3: -$807.76, flips negative), every
+   one below QQQ's unfiltered +$539.94. The MNQ-helps / QQQ-hurts split
+   is itself robust to the window sizes, so it is a real property of the
+   filter on this data, not noise - but it means the edge cannot yet be
+   called instrument-general.
+2. **Still only one market regime.** Tested on two 60-day pulls
+   (the original `vwap_after_sweep.py` run and the later sensitivity
+   run), but both are recent and overlapping - two views of the same
+   market conditions, not two independent tests. yfinance's ~60-day
+   5-minute cap makes a genuinely non-overlapping window impossible from
+   that source.
+
+## Verdict and the pending validation step
+
+**This is the leading candidate for a real MNQ day-trading setup** - the
+best result in the track and the only filter to pass a sensitivity check.
+It is **not** validated. Final validation is pending the **Databento
+historical data pull planned for Tuesday (2026-09-09)**.
+
+Once that data is available, the specific next test is: **re-run
+`vwap_after_sweep.py`'s exact logic - 10-bar lookback / 5-bar expiry,
+1.5x / 2.0x ATR stop/target, $5/trade cost, one trade per day - against a
+genuinely independent multi-year window** to confirm the MNQ edge holds
+beyond this one recent 60-day period. Until that passes, treat this as
+promising, not proven.
+
+---
+
 ## The investigation so far: 6 single-signal variations
 
 ### 1. Plain ORB breakout (QQQ, 5-min) - lost in all 3 risk configs
