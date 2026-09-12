@@ -25,6 +25,58 @@ day-trading track has produced, promoted here so it does not get lost in
 the narrative of what didn't work. It is **not** a confirmed edge - see
 the caveats and the pending validation step below.
 
+## Current Status (as of 2026-09-11)
+
+**Still the leading candidate, now checked across three separate 60-day
+windows - all net positive at 1 contract.** Three independent pulls of
+`vwap_after_sweep.py` on MNQ=F (10-bar lookback / 5-bar expiry, the
+default parameters) have each come back profitable after the $5/trade
+cost: the original pull (62% win rate, 15/24, +$1,404.12 net), the
+sensitivity-check pull (64% win rate, 16/25, +$1,513.17 net), and this
+session's fresh pull (58% win rate, 14/24, +$1,055.76 net) - win rates
+58-64% and net P/L +$1,055-1,513 across all three. The sensitivity-check
+pull's parameter sweep (5/3, 10/5, 15/7 lookback/expiry, all tested on
+that one pull) also came back positive at every setting tried (61-68%
+win rate). So the filter has survived both a repeated-time-window check
+and a parameter-perturbation check - but not yet the same check done
+together, since the parameter sweep has only been run on one of the
+three time windows, not all three (see "still outstanding" below).
+
+**NEW: real prop-firm risk validated for the first time.** Checked this
+session against Apex Trader Funding's actual $2,500 trailing drawdown
+limit (50K account, legacy rules). Reconstructing a trade-by-trade
+equity curve from this session's fresh pull: max peak-to-trough drawdown
+was **$541.72 at 1 contract (22% of the limit) - safe**, with $1,958.28
+of headroom. That headroom does not survive scaling to Apex's full
+10-contract allowance for this account size: the same sequence scaled to
+10 contracts would have hit **$5,417.20 - more than double the limit.**
+**Recommended safe position size: 3 contracts** (65% of the limit, inside
+a deliberate 60-70% safety buffer - see "Drawdown check and safe position
+sizing" below for the full contract-by-contract table).
+
+**Caveats on the drawdown result, logged here so they aren't lost:** the
+$541.72 figure comes from **closed-trade P/L only** - none of this
+track's scripts track intrabar/unrealized equity, so a trade's real
+mid-trade adverse excursion before it recovers to its stop or target
+could run deeper than what shows up between two trade-close prints. This
+is **one observed equity path scaled linearly by contract count, not a
+Monte Carlo simulation or a worst-case bound** - a different 60-day
+window could plausibly produce a materially larger drawdown than $541.72
+at 1 contract, which would lower the safe contract count accordingly.
+
+**Still outstanding before this counts as a validated, tradeable setup:**
+- A genuinely independent, non-overlapping historical time window - still
+  pending the Databento data purchase (see "Verdict and the pending
+  validation step" below; not yet completed as of this update).
+- Apex's profit target and minimum-trading-days requirements have **not
+  been checked at all** - only the trailing drawdown limit has been
+  validated so far. A strategy can pass a drawdown check and still fail
+  an evaluation account on trade-frequency or time-to-target grounds.
+- The 5/3 / 10/5 / 15/7 parameter sensitivity check has only been run on
+  one of the three time windows tested above - it hasn't yet been
+  confirmed that the sensitivity result also holds on the other two
+  pulls.
+
 ## What it is
 
 `vwap_after_sweep.py`, on **MNQ=F specifically**. `vwap_intraday.py`'s
