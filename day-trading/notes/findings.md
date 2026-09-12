@@ -299,6 +299,71 @@ been tested with intrabar/tick-level drawdown tracking. Treat "2
 contracts" as a sizing cap implied by this one piece of evidence under
 the corrected 2026 Apex rules, not a validated risk limit.
 
+## Meta-Pattern: MNQ/QQQ Disagreement
+
+Across this whole track, MNQ=F and QQQ - two instruments both tracking
+the Nasdaq-100 - have now repeatedly disagreed on sign or produced
+meaningfully different results, not just different magnitudes of the
+same finding:
+
+- `sweep_only.py`: MNQ lost decisively (-$2,893.85, 262 trades), QQQ was
+  barely profitable (+$192.56, 274 trades) - opposite signs.
+- `sweep_vwap.py`: MNQ's loss shrank once a real VWAP filter was added
+  (-$2,893.85 -> -$662.46), while QQQ's marginal win flipped to a loss
+  (+$192.56 -> -$641.64) - the same filter helped one and hurt the other.
+- `vwap_after_sweep.py` (this track's leading candidate): the
+  sweep-context filter roughly doubles MNQ's net P/L at every window
+  size tested (5/3, 10/5, 15/7) but hurts QQQ at every one of the same
+  window sizes, monotonically worse as it tightens (10/5: +$63.67, 5/3:
+  -$807.76).
+- `rsi_intraday_tight.py` (10/90 thresholds, this session): MNQ lost
+  money net (-$388.97, 16 trades, 61% top-3 concentration - fragile)
+  while QQQ was net positive (+$1,633.83, 22 trades, 36% concentration -
+  healthier).
+
+Four separate signal families now show this pattern - enough repetition
+to treat it as a structural property of this track's data, not
+coincidence on any one test. The likely explanation: MNQ trades nearly
+24 hours with futures-specific participants and liquidity patterns
+(overnight positioning, different order flow) while QQQ only trades
+during the cash session - genuine microstructure differences, not the
+same underlying signal measured twice on the same market. `yfinance`
+data-quality differences between the two sources may also contribute,
+though that hasn't been isolated from the microstructure explanation.
+
+**Going forward: agreement between MNQ and QQQ should be treated as the
+real bar for trusting a result - disagreement is a meaningful red flag,
+not just "at least one worked."** A filter or signal that only makes
+money on one of two closely related instruments has not demonstrated a
+general edge; it may be fitting to that instrument's specific data
+window rather than to real structure. This raises the bar for
+`vwap_after_sweep.py` itself, too - its own MNQ/QQQ split (strong on
+MNQ, thin-to-negative on QQQ depending on window) is a real caveat
+already logged above, not one it's exempted from for being the leading
+candidate.
+
+### rsi_intraday_tight.py evaluated as a second, uncorrelated candidate - rejected
+
+`rsi_intraday_tight.py` (RSI(14) < 10 / > 90, otherwise identical to
+`rsi_intraday.py`) was built and tested this session partly to see
+whether tightening RSI's thresholds could produce a second, independent
+setup - something uncorrelated with the VWAP-based leading candidate,
+which would be valuable if it held up. It doesn't:
+
+- **MNQ lost money** (-$388.97 net, 16 trades) with **61% of gross
+  profit concentrated in the top 3 winners** - the fragile end of this
+  file's concentration range, on a sample of only 7 winners.
+- **QQQ was net positive** (+$1,633.83, 22 trades, 36% concentration -
+  healthier) - but this is a single untested 60-day sample with no
+  prior 25/75 QQQ baseline to compare against, and it fits the exact
+  MNQ/QQQ disagreement pattern above rather than breaking it.
+
+**Rejected as a candidate.** A losing, fragile MNQ result plus a QQQ
+result that can't yet be distinguished from "this specific window
+happened to work" is not enough to trust, per the bar just set above.
+`vwap_after_sweep.py` remains the sole validated leading candidate in
+this track.
+
 ---
 
 ## The investigation so far: 6 single-signal variations
