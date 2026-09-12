@@ -97,6 +97,87 @@ genuinely independent multi-year window** to confirm the MNQ edge holds
 beyond this one recent 60-day period. Until that passes, treat this as
 promising, not proven.
 
+## Drawdown check and safe position sizing (against Apex's $2,500 trailing limit)
+
+A fresh run of `vwap_after_sweep.py` on MNQ=F (10-bar lookback / 5-bar
+expiry, the default) pulled a **third** 60-day window (2026-07-02 ->
+2026-09-11) - different from both pulls already recorded above, per this
+file's standing yfinance-rolling-window caveat. This pull: 24 trades, 58%
+win rate (14/24), +$1,055.76 net at 1 contract - in the same ballpark as
+the two pulls above but not identical, as expected.
+
+### Trade-by-trade equity curve and max drawdown
+
+None of this track's scripts track a running equity curve - only a flat
+list of per-trade P/L. Reconstructing one from this pull's 24 trades (net
+of the $5/trade cost, $2/point, 1 contract), tracking the running peak and
+the peak-to-trough dip at each step:
+
+| | Value |
+|---|---|
+| Peak equity | $1,597.48 (after the trade closing 2026-08-25) |
+| Trough equity | $1,055.76 (after the trade closing 2026-09-10) |
+| **Max peak-to-trough drawdown** | **$541.72** |
+| Final net P/L (24 trades) | +$1,055.76 |
+
+The drawdown built up gradually across six losers in an eight-trade
+stretch (2026-08-26 through 2026-09-10) - a broad bleed, not a single bad
+trade, consistent with this file's concentration-check standard for
+telling real results from outlier-driven ones.
+
+### Comparison against Apex's $2,500 trailing drawdown limit (50K account, 10 MNQ max)
+
+At 1 contract, $541.72 uses only 21.7% of the $2,500 limit - not breached,
+with $1,958.28 of headroom left at the worst point. **This does not hold
+at higher size.** The script's own cost/P/L model scales both P/L and
+drawdown linearly with `CONTRACTS` (P/L = points x $2 x contracts; cost =
+$5 x contracts), so this exact drawdown sequence scales directly with
+position size:
+
+| Contracts | Max drawdown (scaled) | % of $2,500 limit |
+|---|---|---|
+| 1 | $541.72 | 21.7% |
+| 2 | $1,083.44 | 43.3% |
+| 3 | $1,625.16 | 65.0% |
+| 4 | $2,166.88 | 86.7% |
+| 5 | $2,708.60 | **108.3% - breaches the limit** |
+| 10 (Apex's stated max) | $5,417.20 | **216.7% - breaches by more than 2x** |
+
+Five contracts alone would have breached the $2,500 trailing limit on this
+exact sequence; Apex's full 10-contract allowance for a 50K account would
+have breached it by more than double.
+
+### Recommended max contract size
+
+Applying a 60-70% buffer against the limit - per the standing caveat that
+this closed-trade-only equity curve can't see intrabar unrealized
+drawdown (which could run deeper before a trade recovers to its stop or
+target than what closed P/L shows), and that 24 trades is a small sample:
+
+- 60% of $2,500 = $1,500 budget -> up to **2 contracts** ($1,083.44 used, 43.3%)
+- 70% of $2,500 = $1,750 budget -> up to **3 contracts** ($1,625.16 used, 65.0%)
+
+**Recommended max: 3 contracts** - 65.0% of the limit, inside the
+requested 60-70% buffer band, leaving $874.84 (35%) unused as margin for
+intrabar depth this backtest doesn't measure and for this being one
+24-trade sample. **2 contracts (43.3% of the limit) is the more
+conservative choice** if extra headroom is wanted beyond the requested
+buffer, given the small sample and the unmeasured intrabar-drawdown
+caveat. Either way, the binding constraint here is this specific
+strategy's observed loss clustering interacting with the trailing
+drawdown rule, not Apex's raw 10-contract cap.
+
+**Caveats carried over from the rest of this section, plus one new one:**
+this is a single, non-validated 60-day pull (a third one, on top of the
+two already caveated above) - not a confirmed edge and not a genuinely
+independent out-of-sample test. The sizing math above is a direct linear
+scaling of one observed drawdown sequence, not a Monte Carlo or
+worst-case-bound estimate - a different 60-day window could plausibly
+produce a materially larger or smaller drawdown, and none of this has
+been tested with intrabar/tick-level drawdown tracking. Treat "3
+contracts" as a sizing cap implied by this one piece of evidence, not a
+validated risk limit.
+
 ---
 
 ## The investigation so far: 6 single-signal variations
