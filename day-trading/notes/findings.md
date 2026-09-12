@@ -42,17 +42,23 @@ and a parameter-perturbation check - but not yet the same check done
 together, since the parameter sweep has only been run on one of the
 three time windows, not all three (see "still outstanding" below).
 
-**NEW: real prop-firm risk validated for the first time.** Checked this
-session against Apex Trader Funding's actual $2,500 trailing drawdown
-limit (50K account, legacy rules). Reconstructing a trade-by-trade
-equity curve from this session's fresh pull: max peak-to-trough drawdown
-was **$541.72 at 1 contract (22% of the limit) - safe**, with $1,958.28
-of headroom. That headroom does not survive scaling to Apex's full
-10-contract allowance for this account size: the same sequence scaled to
-10 contracts would have hit **$5,417.20 - more than double the limit.**
-**Recommended safe position size: 3 contracts** (65% of the limit, inside
-a deliberate 60-70% safety buffer - see "Drawdown check and safe position
-sizing" below for the full contract-by-contract table).
+**NEW: real prop-firm risk validated for the first time - corrected to
+the current Apex product.** An initial pass checked this against Apex
+Trader Funding's **legacy (pre-March-2026)** $50K rules ($2,500 trailing
+drawdown, 10-contract evaluation max) - the wrong rule set for the
+product Apex currently offers. **Corrected to the current 2026 "4.0"
+$50K EOD account: $3,000 profit target, $2,000 trailing drawdown, $1,000
+daily loss limit, 6-contract evaluation max.** Reconstructing a
+trade-by-trade equity curve from this session's fresh pull: max
+peak-to-trough drawdown was **$541.72 at 1 contract (27% of the
+corrected $2,000 limit) - safe**, with $1,458.28 of headroom. That
+headroom does not survive scaling far: **3 contracts (81.3% of the
+$2,000 limit) already exceeds the 60-70% safety buffer**, and 4
+contracts (108.3%) outright breaches it - well below the account's own
+6-contract evaluation cap. **Recommended safe position size: 2
+contracts** (54.2% of the corrected limit - see "Drawdown check and safe
+position sizing" below for the full table, plus new profit-target-timing
+and daily-loss-limit checks).
 
 **Caveats on the drawdown result, logged here so they aren't lost:** the
 $541.72 figure comes from **closed-trade P/L only** - none of this
@@ -68,10 +74,12 @@ at 1 contract, which would lower the safe contract count accordingly.
 - A genuinely independent, non-overlapping historical time window - still
   pending the Databento data purchase (see "Verdict and the pending
   validation step" below; not yet completed as of this update).
-- Apex's profit target and minimum-trading-days requirements have **not
-  been checked at all** - only the trailing drawdown limit has been
-  validated so far. A strategy can pass a drawdown check and still fail
-  an evaluation account on trade-frequency or time-to-target grounds.
+- The profit-target timeline (~71 trading days at 2 contracts) and the
+  daily loss limit (no breach found on this sample, even at 6 contracts)
+  have now been rough-checked against this one 24-trade sample - see
+  below - but this is a linear extrapolation from a single small sample,
+  not a simulation, and Apex's separate minimum-trading-days requirement
+  (if any, distinct from time-to-target) has still not been checked.
 - The 5/3 / 10/5 / 15/7 parameter sensitivity check has only been run on
   one of the three time windows tested above - it hasn't yet been
   confirmed that the sensitivity result also holds on the other two
@@ -149,14 +157,23 @@ genuinely independent multi-year window** to confirm the MNQ edge holds
 beyond this one recent 60-day period. Until that passes, treat this as
 promising, not proven.
 
-## Drawdown check and safe position sizing (against Apex's $2,500 trailing limit)
+## Drawdown check and safe position sizing (against Apex's $2,000 trailing limit) - corrected from an earlier legacy-product calculation
+
+**Correction:** this section originally checked the drawdown result below
+against Apex's **legacy (pre-March-2026)** $50K rules ($2,500 trailing
+drawdown, 10-contract evaluation max). That was the wrong rule set for
+the product Apex currently offers. The current **2026 "4.0" $50K EOD**
+account rules are: **$3,000 profit target, $2,000 trailing drawdown,
+$1,000 daily loss limit, 6-contract evaluation max.** Everything below is
+recalculated against the corrected numbers.
 
 A fresh run of `vwap_after_sweep.py` on MNQ=F (10-bar lookback / 5-bar
 expiry, the default) pulled a **third** 60-day window (2026-07-02 ->
 2026-09-11) - different from both pulls already recorded above, per this
 file's standing yfinance-rolling-window caveat. This pull: 24 trades, 58%
-win rate (14/24), +$1,055.76 net at 1 contract - in the same ballpark as
-the two pulls above but not identical, as expected.
+win rate (14/24), +$1,055.76 net at 1 contract, over 50 trading days
+tested - in the same ballpark as the two pulls above but not identical,
+as expected.
 
 ### Trade-by-trade equity curve and max drawdown
 
@@ -177,58 +194,110 @@ stretch (2026-08-26 through 2026-09-10) - a broad bleed, not a single bad
 trade, consistent with this file's concentration-check standard for
 telling real results from outlier-driven ones.
 
-### Comparison against Apex's $2,500 trailing drawdown limit (50K account, 10 MNQ max)
+### Comparison against Apex's $2,000 trailing drawdown limit (50K EOD account, 6-contract evaluation max)
 
-At 1 contract, $541.72 uses only 21.7% of the $2,500 limit - not breached,
-with $1,958.28 of headroom left at the worst point. **This does not hold
-at higher size.** The script's own cost/P/L model scales both P/L and
-drawdown linearly with `CONTRACTS` (P/L = points x $2 x contracts; cost =
-$5 x contracts), so this exact drawdown sequence scales directly with
-position size:
+At 1 contract, $541.72 uses **27.1%** of the corrected $2,000 limit - not
+breached, with $1,458.28 of headroom left at the worst point. As before,
+the script's own cost/P/L model scales both P/L and drawdown linearly
+with `CONTRACTS` (P/L = points x $2 x contracts; cost = $5 x contracts),
+so this exact drawdown sequence scales directly with position size:
 
-| Contracts | Max drawdown (scaled) | % of $2,500 limit |
+| Contracts | Max drawdown (scaled) | % of $2,000 limit |
 |---|---|---|
-| 1 | $541.72 | 21.7% |
-| 2 | $1,083.44 | 43.3% |
-| 3 | $1,625.16 | 65.0% |
-| 4 | $2,166.88 | 86.7% |
-| 5 | $2,708.60 | **108.3% - breaches the limit** |
-| 10 (Apex's stated max) | $5,417.20 | **216.7% - breaches by more than 2x** |
+| 1 | $541.72 | 27.1% |
+| 2 | $1,083.44 | 54.2% |
+| 3 | $1,625.16 | 81.3% - exceeds the 60-70% buffer |
+| 4 | $2,166.88 | **108.3% - breaches the limit** |
+| 5 | $2,708.60 | **135.4% - breaches the limit** |
+| 6 (eval's own max) | $3,250.32 | **162.5% - breaches the limit** |
 
-Five contracts alone would have breached the $2,500 trailing limit on this
-exact sequence; Apex's full 10-contract allowance for a 50K account would
-have breached it by more than double.
+The corrected, smaller $2,000 limit changes the picture materially from
+the earlier (wrong) legacy-rules calculation: **3 contracts - previously
+recommended under the $2,500 legacy limit - now exceeds even the 70%
+safety buffer**, and 4 contracts outright breaches the limit, well before
+reaching the account's own 6-contract evaluation cap. The 6-contract cap
+is not the binding constraint here; the trailing drawdown limit is, and
+it binds sooner under the current product's smaller limit.
 
-### Recommended max contract size
+### Recommended max contract size (corrected)
 
-Applying a 60-70% buffer against the limit - per the standing caveat that
-this closed-trade-only equity curve can't see intrabar unrealized
-drawdown (which could run deeper before a trade recovers to its stop or
-target than what closed P/L shows), and that 24 trades is a small sample:
+Applying the same 60-70% buffer approach as before, now against the
+corrected $2,000 limit:
 
-- 60% of $2,500 = $1,500 budget -> up to **2 contracts** ($1,083.44 used, 43.3%)
-- 70% of $2,500 = $1,750 budget -> up to **3 contracts** ($1,625.16 used, 65.0%)
+- 60% of $2,000 = $1,200 budget -> up to **2 contracts** ($1,083.44 used, 54.2%)
+- 70% of $2,000 = $1,400 budget -> up to **2 contracts** ($1,083.44 used, 54.2%)
 
-**Recommended max: 3 contracts** - 65.0% of the limit, inside the
-requested 60-70% buffer band, leaving $874.84 (35%) unused as margin for
-intrabar depth this backtest doesn't measure and for this being one
-24-trade sample. **2 contracts (43.3% of the limit) is the more
-conservative choice** if extra headroom is wanted beyond the requested
-buffer, given the small sample and the unmeasured intrabar-drawdown
-caveat. Either way, the binding constraint here is this specific
-strategy's observed loss clustering interacting with the trailing
-drawdown rule, not Apex's raw 10-contract cap.
+Both ends of the buffer land on the same answer this time - 3 contracts
+(81.3%) already exceeds even the 70% end. **Recommended max: 2
+contracts** - 54.2% of the corrected limit, leaving $916.56 (46%) unused
+as margin for intrabar depth this backtest doesn't measure and for this
+being one 24-trade sample. This is a materially more conservative
+recommendation than the earlier (wrong) 3-contract figure - the corrected
+$2,000 limit, 20% smaller than the $2,500 figure used before, drops the
+safe contract count from 3 to 2.
+
+### How long to reach the $3,000 profit target at 2 contracts (rough estimate)
+
+Using this sample's own trade frequency and average result, scaled to
+the recommended 2-contract size:
+
+- Net P/L per trade at 1 contract: $1,055.76 / 24 trades = **$43.99/trade**
+- Net P/L per trading day at 1 contract, averaged across all 50 days
+  tested (not just the 24 that produced a trade): $1,055.76 / 50 days =
+  **$21.12/day**
+- At 2 contracts, both scale by 2x: **$87.98/trade**, **$42.23/day**
+- Trades needed for $3,000: 3,000 / 87.98 = ~34 trades -> at this
+  sample's trade frequency (24 trades / 50 days = 0.48 trades/day), that's
+  ~71 trading days
+- Cross-checked directly from the per-day average: 3,000 / 42.23 =
+  **~71 trading days**
+
+Both approaches agree: **roughly 70-71 trading days (about 14 weeks) to
+reach the $3,000 profit target at the recommended 2-contract size**, if
+this sample's trade frequency and average result held steady going
+forward. This is a **linear extrapolation from one 24-trade, 50-day
+sample** - not a simulation, not adjusted for the sample's own $541.72
+drawdown (real progress would not be smooth; the actual path includes the
+8-trade losing stretch documented above), and could be materially
+different on another window. It also doesn't check whether Apex's account
+has its own separate minimum-number-of-trading-days requirement, distinct
+from time-to-target, which remains unchecked.
+
+### Daily loss limit check ($1,000/day)
+
+Because this strategy caps trading at **one trade per day**, a day's P/L
+equals that single trade's P/L (or $0 on a no-trade day) - so the daily
+loss check reduces to finding the single worst trade in the 24-trade
+sample.
+
+| | Value |
+|---|---|
+| Worst single trade/day, net at 1 contract | **-$154.56** (2026-07-29) |
+| ...at 2 contracts (recommended size) | -$309.12 (30.9% of the $1,000 limit) |
+| ...at 6 contracts (eval's own max) | -$927.36 (**92.7%** of the $1,000 limit) |
+
+**No day in this sample would have breached the $1,000 daily loss limit,
+even at the account's full 6-contract evaluation max** - but at 6
+contracts the margin was thin (only 7.3% of the limit, $72.64, left on the
+worst day). At the recommended 2-contract size the margin is much wider
+(69.1% of the limit unused on the worst day). This is a second,
+independent reason to prefer the drawdown-derived 2-contract cap over
+sizing up toward the eval's raw 6-contract allowance: even setting the
+trailing-drawdown limit aside, 6 contracts leaves very little room for a
+single bad day on the daily loss limit alone, on this one sample.
 
 **Caveats carried over from the rest of this section, plus one new one:**
 this is a single, non-validated 60-day pull (a third one, on top of the
 two already caveated above) - not a confirmed edge and not a genuinely
-independent out-of-sample test. The sizing math above is a direct linear
-scaling of one observed drawdown sequence, not a Monte Carlo or
+independent out-of-sample test. All of the sizing, profit-target-timing,
+and daily-loss-limit math above is a direct linear scaling or
+extrapolation of one observed trade sequence, not a Monte Carlo or
 worst-case-bound estimate - a different 60-day window could plausibly
-produce a materially larger or smaller drawdown, and none of this has
-been tested with intrabar/tick-level drawdown tracking. Treat "3
-contracts" as a sizing cap implied by this one piece of evidence, not a
-validated risk limit.
+produce a materially larger drawdown, a slower path to the profit target,
+or a worse single-day loss than what's recorded here. None of this has
+been tested with intrabar/tick-level drawdown tracking. Treat "2
+contracts" as a sizing cap implied by this one piece of evidence under
+the corrected 2026 Apex rules, not a validated risk limit.
 
 ---
 
